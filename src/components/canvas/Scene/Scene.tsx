@@ -5,12 +5,13 @@ import { InteractiveBox } from '@/components/canvas/InteractiveBox';
 import { OBJECT_COLORS } from '@/constants/scene';
 
 export function Scene() {
-  const { showGrid, environment } = useControls('Scene', {
+  const { showGrid, environment, envBackground } = useControls('Scene', {
     showGrid: true,
     environment: {
       options: ['studio', 'city', 'sunset', 'dawn', 'night', 'warehouse', 'forest', 'apartment', 'park', 'lobby'],
       value: 'studio',
     },
+    envBackground: { value: false, label: 'Env Background' },
   });
 
   return (
@@ -26,7 +27,7 @@ export function Scene() {
       />
 
       {/* Environment map for reflections */}
-      <Environment preset={environment as 'studio'} background={false} />
+      <Environment preset={environment as 'studio'} background={envBackground} />
 
       {/* Interactive objects */}
       <InteractiveBox id="box-1" position={[-2, 0.5, 0]} color={OBJECT_COLORS[0]} />
