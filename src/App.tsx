@@ -1,21 +1,25 @@
 import { Suspense } from 'react';
 
 import { Canvas } from '@react-three/fiber';
-import { Perf } from 'r3f-perf';
 
-import { Scene } from '@/components/canvas';
-import { Overlay } from '@/components/ui';
+import { ChapterScene } from '@/components/canvas/ChapterScene';
+import { AppShell } from '@/components/ui/AppShell';
+import { ChapterOverlay } from '@/components/ui/ChapterOverlay';
 
 export function App() {
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-      <Canvas shadows camera={{ position: [3, 2.5, 4], fov: 50 }}>
+    <AppShell>
+      {/* 3D Canvas fills the main area */}
+      <Canvas shadows camera={{ position: [4, 3, 4], fov: 50 }}>
         <Suspense fallback={null}>
-          <Scene />
+          <ChapterScene />
         </Suspense>
-        <Perf position="top-left" />
       </Canvas>
-      <Overlay />
-    </div>
+
+      {/* HTML overlay on top of the canvas */}
+      <div className="pointer-events-none absolute inset-0 z-10">
+        <ChapterOverlay />
+      </div>
+    </AppShell>
   );
 }
