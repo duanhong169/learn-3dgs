@@ -85,21 +85,6 @@ export function CameraFrustum({
 
       {/* Far plane (image plane) */}
       <Line points={[p.ftl, p.ftr, p.fbr, p.fbl, p.ftl]} color={color} lineWidth={1.5} />
-
-      {/* Image plane fill */}
-      <mesh
-        position={[
-          (p.ftl[0] + p.fbr[0]) / 2,
-          (p.ftl[1] + p.fbr[1]) / 2,
-          (p.ftl[2] + p.fbr[2]) / 2,
-        ]}
-      >
-        <planeGeometry args={[
-          Math.sqrt((p.ftr[0] - p.ftl[0]) ** 2 + (p.ftr[1] - p.ftl[1]) ** 2 + (p.ftr[2] - p.ftl[2]) ** 2),
-          Math.sqrt((p.ftl[0] - p.fbl[0]) ** 2 + (p.ftl[1] - p.fbl[1]) ** 2 + (p.ftl[2] - p.fbl[2]) ** 2),
-        ]} />
-        <meshBasicMaterial color={color} transparent opacity={0.08} side={THREE.DoubleSide} />
-      </mesh>
     </group>
   );
 }

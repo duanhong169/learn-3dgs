@@ -31,12 +31,15 @@ export function SplattingScene() {
     return [x, y, z];
   }, [cameraAzimuth, cameraElevation, cameraDistance]);
 
+  // Direction from camera to Gaussian (origin)
+  const camDir = useMemo(() => {
+    const dir = new THREE.Vector3(-virtualCamPos[0], -virtualCamPos[1], -virtualCamPos[2]).normalize();
+    return dir;
+  }, [virtualCamPos]);
+
   // Compute 3D covariance and project to 2D
   const { cov3D, ellipseParams } = useMemo(() => {
     const cov = buildCovarianceMatrix(gaussianScale, gaussianRotation);
-
-    // The Gaussian is at origin, virtual camera is at virtualCamPos
-    // Focal lengths (arbitrary for visualization)
     const fx = 2;
     const fy = 2;
     const jacobian = computeProjectionJacobian(
@@ -45,7 +48,6 @@ export function SplattingScene() {
     );
     const cov2D = projectCovariance3Dto2D(cov, jacobian);
     const ellipse = covarianceToEllipse(cov2D);
-
     return { cov3D: cov, cov2D, ellipseParams: ellipse };
   }, [gaussianScale, gaussianRotation, virtualCamPos]);
 
@@ -54,28 +56,35 @@ export function SplattingScene() {
     setCovariance3D(cov3D);
   }, [cov3D, setCovariance3D]);
 
-  // Screen plane position: behind the Gaussian from the virtual camera's perspective
-  const screenPlanePos: [number, number, number] = useMemo(() => {
-    // Place screen plane opposite the virtual camera
-    const dir = new THREE.Vector3(-virtualCamPos[0], -virtualCamPos[1], -virtualCamPos[2]).normalize();
-    return [dir.x * 3, dir.y * 3, dir.z * 3];
-  }, [virtualCamPos]);
+  // Image plane: positioned between camera and Gaussian, at 40% from camera
+  const imagePlaneDistance = cameraDistance * 0.4;
+  const imagePlanePos: [number, number, number] = useMemo(() => [
+    virtualCamPos[0] + camDir.x * imagePlaneDistance,
+    virtualCamPos[1] + camDir.y * imagePlaneDistance,
+    virtualCamPos[2] + camDir.z * imagePlaneDistance,
+  ], [virtualCamPos, camDir, imagePlaneDistance]);
 
-  // Screen plane rotation: face the virtual camera
-  const screenPlaneRotation = useMemo(() => {
-    const dir = new THREE.Vector3(
-      virtualCamPos[0] - screenPlanePos[0],
-      virtualCamPos[1] - screenPlanePos[1],
-      virtualCamPos[2] - screenPlanePos[2],
+  // Image plane quaternion: face toward the camera
+  const imagePlaneQuaternion = useMemo(() => {
+    const lookDir = new THREE.Vector3(
+      virtualCamPos[0] - imagePlanePos[0],
+      virtualCamPos[1] - imagePlanePos[1],
+      virtualCamPos[2] - imagePlanePos[2],
     ).normalize();
-    const euler = new THREE.Euler();
-    const quaternion = new THREE.Quaternion();
-    const lookMatrix = new THREE.Matrix4();
-    lookMatrix.lookAt(new THREE.Vector3(0, 0, 0), dir, new THREE.Vector3(0, 1, 0));
-    quaternion.setFromRotationMatrix(lookMatrix);
-    euler.setFromQuaternion(quaternion);
-    return [euler.x, euler.y, euler.z] as [number, number, number];
-  }, [virtualCamPos, screenPlanePos]);
+    const quat = new THREE.Quaternion();
+    const mat = new THREE.Matrix4();
+    mat.lookAt(new THREE.Vector3(0, 0, 0), lookDir, new THREE.Vector3(0, 1, 0));
+    quat.setFromRotationMatrix(mat);
+    return quat;
+  }, [virtualCamPos, imagePlanePos]);
+
+  // Image plane size: match frustum cross-section at that distance
+  const planeSize = useMemo(() => {
+    const halfFov = degToRad(50 / 2);
+    const h = Math.tan(halfFov) * imagePlaneDistance * 2;
+    const w = h * 1.2;
+    return [w, h] as [number, number];
+  }, [imagePlaneDistance]);
 
   return (
     <group>
@@ -98,11 +107,14 @@ export function SplattingScene() {
         color="#58a6ff"
       />
 
-      {/* Screen plane showing 2D projection */}
-      <group position={screenPlanePos} rotation={screenPlaneRotation}>
+      {/* Image plane showing 2D projection — placed inside the frustum */}
+      <group
+        position={imagePlanePos}
+        quaternion={imagePlaneQuaternion}
+      >
         <ScreenPlane
           position={[0, 0, 0]}
-          size={[2.5, 2.5]}
+          size={planeSize}
           ellipse={{
             centerX: 0,
             centerY: 0,
@@ -118,7 +130,7 @@ export function SplattingScene() {
       <ProjectionRays
         from={[0, 0, 0]}
         to={virtualCamPos}
-        imagePlanePoint={screenPlanePos}
+        imagePlanePoint={imagePlanePos}
         visible={showProjectionLines}
       />
     </group>
