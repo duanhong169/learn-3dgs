@@ -1,5 +1,5 @@
 /** Available chapter identifiers. */
-export type ChapterId = 'gaussian-basics' | 'splatting' | 'alpha-blending' | 'optimization';
+export type ChapterId = 'gaussian-basics' | 'splatting' | 'alpha-blending' | 'optimization' | 'reconstruction';
 
 /** Metadata for a single chapter. */
 export interface ChapterMeta {

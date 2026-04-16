@@ -31,6 +31,13 @@ export const CHAPTERS: ChapterMeta[] = [
     icon: '⚙️',
     totalSteps: 8,
   },
+  {
+    id: 'reconstruction',
+    title: '3DGS 重建',
+    subtitle: '场景重建与自由漫游',
+    icon: '🏗️',
+    totalSteps: 5,
+  },
 ];
 
 /** Camera preset positions for each chapter. */
@@ -39,6 +46,7 @@ export const CHAPTER_CAMERA_POSITIONS: Record<ChapterId, Tuple3> = {
   'splatting': [6, 4, 6],
   'alpha-blending': [0, 0, 8],
   'optimization': [8, 6, 8],
+  'reconstruction': [6, 4, 6],
 };
 
 /** Camera look-at targets for each chapter. */
@@ -47,4 +55,5 @@ export const CHAPTER_CAMERA_TARGETS: Record<ChapterId, Tuple3> = {
   'splatting': [0, 0, 0],
   'alpha-blending': [0, 0, 0],
   'optimization': [0, 0, 0],
+  'reconstruction': [0, 0.5, 0],
 };

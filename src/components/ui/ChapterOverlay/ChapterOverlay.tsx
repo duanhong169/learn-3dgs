@@ -3,6 +3,7 @@ import { GaussianBasicsOverlay } from '@/components/ui/chapters/GaussianBasicsOv
 import { SplattingOverlay } from '@/components/ui/chapters/SplattingOverlay';
 import { AlphaBlendingOverlay } from '@/components/ui/chapters/AlphaBlendingOverlay';
 import { OptimizationOverlay } from '@/components/ui/chapters/OptimizationOverlay';
+import { ReconstructionOverlay } from '@/components/ui/chapters/ReconstructionOverlay';
 
 export function ChapterOverlay() {
   const activeChapter = useChapterStore((s) => s.activeChapter);
@@ -16,6 +17,8 @@ export function ChapterOverlay() {
       return <AlphaBlendingOverlay />;
     case 'optimization':
       return <OptimizationOverlay />;
+    case 'reconstruction':
+      return <ReconstructionOverlay />;
     default:
       return null;
   }

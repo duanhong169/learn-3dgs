@@ -5,6 +5,7 @@ import { GaussianBasicsScene } from '@/components/canvas/chapters/GaussianBasics
 import { SplattingScene } from '@/components/canvas/chapters/SplattingScene';
 import { AlphaBlendingScene } from '@/components/canvas/chapters/AlphaBlendingScene';
 import { OptimizationScene } from '@/components/canvas/chapters/OptimizationScene';
+import { ReconstructionScene } from '@/components/canvas/chapters/ReconstructionScene';
 
 export function ChapterScene() {
   const activeChapter = useChapterStore((s) => s.activeChapter);
@@ -19,6 +20,7 @@ export function ChapterScene() {
       {activeChapter === 'splatting' && <SplattingScene />}
       {activeChapter === 'alpha-blending' && <AlphaBlendingScene />}
       {activeChapter === 'optimization' && <OptimizationScene />}
+      {activeChapter === 'reconstruction' && <ReconstructionScene />}
 
       <Grid
         infiniteGrid
