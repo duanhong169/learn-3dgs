@@ -52,6 +52,11 @@ function computeMockGradient(g: OptGaussian): { gradient: Tuple3; magnitude: num
   };
 }
 
+/** Interval (in steps) between automatic adaptive density control. */
+const DENSIFY_INTERVAL = 10;
+/** Max number of Gaussians to prevent runaway growth. */
+const MAX_GAUSSIANS = 60;
+
 interface OptimizationState {
   gaussians: OptGaussian[];
   step: number;
@@ -60,6 +65,8 @@ interface OptimizationState {
   autoRunSpeed: number;
   showGradients: boolean;
   pruneThreshold: number;
+  /** Whether auto density control runs during optimization. */
+  autoDensify: boolean;
 
   runStep: () => void;
   toggleAutoRun: () => void;
@@ -68,6 +75,7 @@ interface OptimizationState {
   triggerClone: () => void;
   triggerPrune: () => void;
   toggleGradients: () => void;
+  toggleAutoDensify: () => void;
   setPruneThreshold: (t: number) => void;
   reset: () => void;
 }
@@ -80,6 +88,7 @@ export const useOptimizationStore = create<OptimizationState>((set, get) => ({
   autoRunSpeed: 1,
   showGradients: true,
   pruneThreshold: DEFAULT_PRUNE_THRESHOLD,
+  autoDensify: true,
 
   runStep: () => {
     const { gaussians, step, loss } = get();
@@ -136,10 +145,65 @@ export const useOptimizationStore = create<OptimizationState>((set, get) => ({
     }, 0) / updated.length;
 
     const newLoss = Math.max(0, avgDist / 5);
+    const newStep = step + 1;
+
+    let finalGaussians = updated;
+
+    // Auto adaptive density control every DENSIFY_INTERVAL steps
+    if (get().autoDensify && newStep % DENSIFY_INTERVAL === 0 && newStep > 0) {
+      const { pruneThreshold } = get();
+
+      // 1. Prune: remove near-transparent Gaussians
+      finalGaussians = finalGaussians.filter((g) => g.opacity > pruneThreshold);
+
+      // 2. Split: large Gaussians with high gradient → split into 2 smaller ones
+      const toSplit: OptGaussian[] = [];
+      const afterSplit: OptGaussian[] = [];
+      for (const g of finalGaussians) {
+        if (g.gradientMagnitude > 0.3 && Math.max(...g.scale) > 0.5 && finalGaussians.length + afterSplit.length < MAX_GAUSSIANS) {
+          toSplit.push(g);
+          const offset = 0.25;
+          const newScale: Tuple3 = [g.scale[0] * 0.7, g.scale[1] * 0.7, g.scale[2] * 0.7];
+          afterSplit.push({
+            ...g,
+            id: `g-${newStep}-s1-${g.id}`,
+            position: [g.position[0] - g.gradient[0] * offset, g.position[1] - g.gradient[1] * offset, g.position[2] - g.gradient[2] * offset] as Tuple3,
+            scale: newScale,
+          });
+          afterSplit.push({
+            ...g,
+            id: `g-${newStep}-s2-${g.id}`,
+            position: [g.position[0] + g.gradient[0] * offset, g.position[1] + g.gradient[1] * offset, g.position[2] + g.gradient[2] * offset] as Tuple3,
+            scale: newScale,
+          });
+        }
+      }
+      if (toSplit.length > 0) {
+        const splitIds = new Set(toSplit.map((g) => g.id));
+        finalGaussians = finalGaussians.filter((g) => !splitIds.has(g.id)).concat(afterSplit);
+      }
+
+      // 3. Clone: small Gaussians with high gradient → duplicate nearby
+      const toClone: OptGaussian[] = [];
+      for (const g of finalGaussians) {
+        if (g.gradientMagnitude > 0.4 && Math.max(...g.scale) < 0.6 && finalGaussians.length + toClone.length < MAX_GAUSSIANS) {
+          toClone.push({
+            ...g,
+            id: `g-${newStep}-c-${g.id}`,
+            position: [
+              g.position[0] + g.gradient[0] * 0.2,
+              g.position[1] + g.gradient[1] * 0.2,
+              g.position[2] + g.gradient[2] * 0.2,
+            ] as Tuple3,
+          });
+        }
+      }
+      finalGaussians = finalGaussians.concat(toClone);
+    }
 
     set({
-      gaussians: updated,
-      step: step + 1,
+      gaussians: finalGaussians,
+      step: newStep,
       loss: [...loss, newLoss],
     });
   },
@@ -208,6 +272,7 @@ export const useOptimizationStore = create<OptimizationState>((set, get) => ({
   },
 
   toggleGradients: () => set((s) => ({ showGradients: !s.showGradients })),
+  toggleAutoDensify: () => set((s) => ({ autoDensify: !s.autoDensify })),
   setPruneThreshold: (t) => set({ pruneThreshold: t }),
 
   reset: () =>
@@ -217,5 +282,6 @@ export const useOptimizationStore = create<OptimizationState>((set, get) => ({
       loss: [1.0],
       isAutoRunning: false,
       showGradients: true,
+      autoDensify: true,
     }),
 }));

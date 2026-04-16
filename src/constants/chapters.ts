@@ -8,7 +8,7 @@ export const CHAPTERS: ChapterMeta[] = [
     title: '3D 高斯基础',
     subtitle: '位置、形状、颜色与不透明度',
     icon: '🔵',
-    totalSteps: 5,
+    totalSteps: 7,
   },
   {
     id: 'splatting',

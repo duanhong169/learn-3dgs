@@ -25,6 +25,7 @@ export function OptimizationOverlay() {
   const autoRunSpeed = useOptimizationStore((s) => s.autoRunSpeed);
   const showGradients = useOptimizationStore((s) => s.showGradients);
   const pruneThreshold = useOptimizationStore((s) => s.pruneThreshold);
+  const autoDensify = useOptimizationStore((s) => s.autoDensify);
 
   const runStep = useOptimizationStore((s) => s.runStep);
   const toggleAutoRun = useOptimizationStore((s) => s.toggleAutoRun);
@@ -33,6 +34,7 @@ export function OptimizationOverlay() {
   const triggerClone = useOptimizationStore((s) => s.triggerClone);
   const triggerPrune = useOptimizationStore((s) => s.triggerPrune);
   const toggleGradients = useOptimizationStore((s) => s.toggleGradients);
+  const toggleAutoDensify = useOptimizationStore((s) => s.toggleAutoDensify);
   const setPruneThreshold = useOptimizationStore((s) => s.setPruneThreshold);
   const reset = useOptimizationStore((s) => s.reset);
 
@@ -114,6 +116,7 @@ export function OptimizationOverlay() {
         {/* Display options */}
         <ParameterPanel title="显示选项">
           <ParamToggle label="显示梯度箭头" value={showGradients} onChange={toggleGradients} />
+          <ParamToggle label="自动密度控制" value={autoDensify} onChange={toggleAutoDensify} />
         </ParameterPanel>
 
         {/* Loss chart */}
