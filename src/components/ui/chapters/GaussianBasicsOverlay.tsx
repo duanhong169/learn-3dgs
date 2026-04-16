@@ -6,7 +6,7 @@ import { ParamSlider } from '@/components/ui/shared/ParamSlider';
 import { ParamToggle } from '@/components/ui/shared/ParamToggle';
 import { ParamColorPicker } from '@/components/ui/shared/ParamColorPicker';
 import { MatrixDisplay } from '@/components/ui/shared/MatrixDisplay';
-import { SCALE_RANGE, ROTATION_RANGE, OPACITY_RANGE } from '@/constants/gaussian';
+import { SCALE_RANGE, ROTATION_RANGE, OPACITY_RANGE, SH_PRESETS } from '@/constants/gaussian';
 
 import type { Tuple3 } from '@/types/common';
 
@@ -35,6 +35,12 @@ export function GaussianBasicsOverlay() {
   const toggleSamples = useGaussianBasicsStore((s) => s.toggleSamples);
   const toggleAxes = useGaussianBasicsStore((s) => s.toggleAxes);
   const toggleBoundingBox = useGaussianBasicsStore((s) => s.toggleBoundingBox);
+  const shEnabled = useGaussianBasicsStore((s) => s.shEnabled);
+  const shOrder = useGaussianBasicsStore((s) => s.shOrder);
+  const shPreset = useGaussianBasicsStore((s) => s.shPreset);
+  const toggleSH = useGaussianBasicsStore((s) => s.toggleSH);
+  const setSHOrder = useGaussianBasicsStore((s) => s.setSHOrder);
+  const setSHPreset = useGaussianBasicsStore((s) => s.setSHPreset);
   const reset = useGaussianBasicsStore((s) => s.reset);
 
   const { formatted } = useGaussianMatrix(scale, rotation);
@@ -72,7 +78,65 @@ export function GaussianBasicsOverlay() {
         </ParameterPanel>
 
         <ParameterPanel title="外观">
-          <ParamColorPicker label="颜色" value={color} onChange={setColor} />
+          <ParamToggle
+            label="球谐颜色 (SH)"
+            value={shEnabled}
+            onChange={toggleSH}
+            tooltip="启用球谐函数着色。旋转视角可以看到颜色随方向变化。关闭则使用固定颜色。"
+          />
+          {shEnabled ? (
+            <>
+              {/* SH preset selector */}
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-text">预设效果</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {SH_PRESETS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      onClick={() => setSHPreset(preset.name)}
+                      className={`rounded-md border px-2 py-1 text-xs transition-colors duration-75 ${
+                        shPreset === preset.name
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border text-text-muted hover:bg-bg'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-text-muted">
+                  {SH_PRESETS.find((p) => p.name === shPreset)?.description}
+                </p>
+              </div>
+              {/* SH order selector */}
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-text">SH 阶数</span>
+                <div className="flex gap-1.5">
+                  {[0, 1, 2, 3].map((order) => (
+                    <button
+                      key={order}
+                      onClick={() => setSHOrder(order)}
+                      className={`flex-1 rounded-md border py-1 text-center text-xs transition-colors duration-75 ${
+                        shOrder === order
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border text-text-muted hover:bg-bg'
+                      }`}
+                    >
+                      {order}阶
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-text-muted">
+                  {shOrder === 0 && '1 个系数 = 固定单色（无视角依赖）'}
+                  {shOrder === 1 && '4 个系数 = 简单方向性变化'}
+                  {shOrder === 2 && '9 个系数 = 中等复杂度的角度依赖'}
+                  {shOrder === 3 && '16 个系数 = 完整的视角相关颜色'}
+                </p>
+              </div>
+            </>
+          ) : (
+            <ParamColorPicker label="颜色" value={color} onChange={setColor} />
+          )}
           <ParamSlider label="不透明度 (α)" value={opacity} {...OPACITY_RANGE} onChange={setOpacity} />
         </ParameterPanel>
 

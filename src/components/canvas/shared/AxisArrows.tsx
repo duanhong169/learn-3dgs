@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Line } from '@react-three/drei';
+import * as THREE from 'three';
 
 export interface AxisArrowsProps {
   /** Length of each axis arrow. */
@@ -10,6 +11,32 @@ export interface AxisArrowsProps {
   scale?: [number, number, number];
   /** Rotation (degrees) to match the Gaussian. */
   rotation?: [number, number, number];
+}
+
+/** A cone tip that points along a given direction vector. */
+function ArrowTip({
+  position,
+  direction,
+  color,
+}: {
+  position: [number, number, number];
+  direction: [number, number, number];
+  color: string;
+}) {
+  // Compute quaternion that rotates Y+ (cone default) to the target direction
+  const quaternion = useMemo(() => {
+    const dir = new THREE.Vector3(...direction).normalize();
+    const quat = new THREE.Quaternion();
+    quat.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    return quat;
+  }, [direction]);
+
+  return (
+    <mesh position={position} quaternion={quaternion}>
+      <coneGeometry args={[0.05, 0.15, 8]} />
+      <meshBasicMaterial color={color} />
+    </mesh>
+  );
 }
 
 /**
@@ -54,11 +81,7 @@ export function AxisArrows({
               color={axis.color}
               lineWidth={2}
             />
-            {/* Arrow tip */}
-            <mesh position={end}>
-              <coneGeometry args={[0.05, 0.15, 8]} />
-              <meshBasicMaterial color={axis.color} />
-            </mesh>
+            <ArrowTip position={end} direction={axis.dir} color={axis.color} />
           </group>
         );
       })}

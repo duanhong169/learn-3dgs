@@ -17,6 +17,9 @@ export function GaussianBasicsScene() {
   const showSamples = useGaussianBasicsStore((s) => s.showSamples);
   const showAxes = useGaussianBasicsStore((s) => s.showAxes);
   const showBoundingBox = useGaussianBasicsStore((s) => s.showBoundingBox);
+  const shEnabled = useGaussianBasicsStore((s) => s.shEnabled);
+  const shOrder = useGaussianBasicsStore((s) => s.shOrder);
+  const shCoefficients = useGaussianBasicsStore((s) => s.shCoefficients);
 
   // Generate sample points (recreated when scale changes)
   const samplePoints = useMemo(() => {
@@ -42,6 +45,9 @@ export function GaussianBasicsScene() {
         rotation={rotation}
         color={color}
         opacity={opacity}
+        useSH={shEnabled}
+        shOrder={shOrder}
+        shCoefficients={shCoefficients}
       />
 
       {/* Axis arrows showing principal directions */}

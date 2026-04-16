@@ -1,4 +1,6 @@
+import { useMemo } from 'react';
 import { Line } from '@react-three/drei';
+import * as THREE from 'three';
 
 import type { Tuple3 } from '@/types/common';
 
@@ -20,6 +22,14 @@ export function GradientArrow({
   color = '#d29922',
   visible = true,
 }: GradientArrowProps) {
+  // Rotate cone from default Y+ to the gradient direction
+  const quaternion = useMemo(() => {
+    const dir = new THREE.Vector3(...direction).normalize();
+    const quat = new THREE.Quaternion();
+    quat.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    return quat;
+  }, [direction]);
+
   if (!visible || magnitude < 0.05) return null;
 
   const length = Math.min(magnitude * 0.5, 1.5);
@@ -38,7 +48,7 @@ export function GradientArrow({
         transparent
         opacity={0.8}
       />
-      <mesh position={end}>
+      <mesh position={end} quaternion={quaternion}>
         <coneGeometry args={[0.04, 0.12, 6]} />
         <meshBasicMaterial color={color} />
       </mesh>
