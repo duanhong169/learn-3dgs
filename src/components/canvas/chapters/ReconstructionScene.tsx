@@ -355,7 +355,7 @@ export function ReconstructionScene() {
 
           {/* 2D rendered view — placed on the frustum far plane */}
           <CameraRenderedView
-            key={`render-${densityLevel}-${cameraAzimuth}-${cameraElevation}-${cameraDistance}-${cameraFocalLength}-${useCameraPixelEvaluation}`}
+            key={`render-${densityLevel}`}
             gaussians={animatedGaussians}
             cameraPos={virtualCameraPos}
             cameraLookAt={cameraLookAt}

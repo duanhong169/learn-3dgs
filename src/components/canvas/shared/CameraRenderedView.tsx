@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useMemo } from 'react';
+import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import * as THREE from 'three';
 
 import { buildCovarianceMatrix } from '@/utils/math';
@@ -27,18 +27,27 @@ export interface CameraRenderedViewProps {
   displaySize?: [number, number];
 }
 
-// Resolution — lower = faster. 256×256 is ~4× faster than 512×512
-const RENDER_RES = 256;
+// Resolution constants
+const HI_RES = 256;
+const LO_RES = 64;
+const DEBOUNCE_MS = 300;
 
-// Singleton canvas + texture (reused across renders)
-const renderCanvas = (() => {
+// Two canvases: one for quick low-res preview, one for final high-res
+const loCanvas = (() => {
   const c = document.createElement('canvas');
-  c.width = RENDER_RES;
-  c.height = RENDER_RES;
+  c.width = LO_RES;
+  c.height = LO_RES;
   return c;
 })();
 
-const renderTexture = new THREE.CanvasTexture(renderCanvas);
+const hiCanvas = (() => {
+  const c = document.createElement('canvas');
+  c.width = HI_RES;
+  c.height = HI_RES;
+  return c;
+})();
+
+const renderTexture = new THREE.CanvasTexture(hiCanvas);
 renderTexture.minFilter = THREE.LinearFilter;
 renderTexture.magFilter = THREE.LinearFilter;
 
@@ -108,8 +117,6 @@ function projectToScreen(
   resolution: number,
 ): [number, number, number] {
   const depth = Math.max(0.01, camPos[2]);
-  // focalLength is in pixel units (relative to the render resolution).
-  // Scale it proportionally: store default 500 is for ~512px, scale to actual res.
   const fx = focalLength * (resolution / 512);
   const halfRes = resolution / 2;
   const pixelX = (camPos[0] * fx) / depth + halfRes;
@@ -165,7 +172,6 @@ function renderGaussianCameraView(
   const h = canvas.height;
   const viewBasis = computeViewBasis(cameraPos, cameraLookAt);
 
-  // Scale focal length from store units (for 512px) to actual render resolution
   const fx = focalLength * (w / 512);
 
   // Project all gaussians to screen space
@@ -220,10 +226,8 @@ function renderGaussianCameraView(
         let alpha = 0;
 
         if (usePixelEvaluation) {
-          // Exact 2D Gaussian evaluation
           alpha = evaluateGaussian2D(px, py, splat.centerX, splat.centerY, splat.cov2D);
         } else {
-          // Approximate ellipse-based evaluation
           const dx = px - splat.centerX;
           const dy = py - splat.centerY;
           const cosA = Math.cos(splat.angle);
@@ -258,9 +262,20 @@ function renderGaussianCameraView(
 
   // HUD overlay text
   ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-  ctx.font = 'bold 11px monospace';
-  ctx.fillText(`3DGS Rendered View  (${projected.length} splats)`, 6, 14);
+  ctx.font = `bold ${Math.round(w * 0.043)}px monospace`;
+  ctx.fillText(`3DGS Rendered View  (${projected.length} splats)`, 6, Math.round(w * 0.055));
+}
 
+/**
+ * Copy the content of a source canvas onto the hi-res canvas (scaling up if needed),
+ * then mark the shared texture as needing update.
+ */
+function commitToTexture(source: HTMLCanvasElement): void {
+  const ctx = hiCanvas.getContext('2d');
+  if (!ctx) return;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'medium';
+  ctx.drawImage(source, 0, 0, HI_RES, HI_RES);
   renderTexture.needsUpdate = true;
 }
 
@@ -269,6 +284,10 @@ function renderGaussianCameraView(
 /**
  * Renders the Gaussian splat cloud as a 2D image using CPU splatting,
  * then displays it on a textured plane in 3D space.
+ *
+ * Uses dual-resolution rendering:
+ * - Instant 64×64 low-res preview on parameter change
+ * - Debounced 256×256 high-res render after 300ms of inactivity
  */
 export function CameraRenderedView({
   gaussians,
@@ -281,31 +300,41 @@ export function CameraRenderedView({
   displaySize = [3.5, 3.5],
 }: CameraRenderedViewProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const [isRendering, setIsRendering] = useState(true);
+  const [isRendering, setIsRendering] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const quat = useMemo(
     () => new THREE.Quaternion(displayQuaternion[0], displayQuaternion[1], displayQuaternion[2], displayQuaternion[3]),
     [displayQuaternion],
   );
 
+  // Stable render function refs to avoid stale closures
+  const renderLowRes = useCallback(() => {
+    renderGaussianCameraView(loCanvas, gaussians, cameraPos, cameraLookAt, focalLength, usePixelEvaluation);
+    commitToTexture(loCanvas);
+  }, [gaussians, cameraPos, cameraLookAt, focalLength, usePixelEvaluation]);
+
+  const renderHiRes = useCallback(() => {
+    renderGaussianCameraView(hiCanvas, gaussians, cameraPos, cameraLookAt, focalLength, usePixelEvaluation);
+    renderTexture.needsUpdate = true;
+    setIsRendering(false);
+  }, [gaussians, cameraPos, cameraLookAt, focalLength, usePixelEvaluation]);
+
   useEffect(() => {
+    // 1) Instant low-res preview
+    renderLowRes();
     setIsRendering(true);
 
-    // Defer heavy CPU work to avoid blocking the main thread
-    const timeoutId = setTimeout(() => {
-      renderGaussianCameraView(
-        renderCanvas,
-        gaussians,
-        cameraPos,
-        cameraLookAt,
-        focalLength,
-        usePixelEvaluation,
-      );
-      setIsRendering(false);
-    }, 16);
+    // 2) Debounced hi-res render
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      renderHiRes();
+    }, DEBOUNCE_MS);
 
-    return () => clearTimeout(timeoutId);
-  }, [gaussians, cameraPos, cameraLookAt, focalLength, usePixelEvaluation]);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [renderLowRes, renderHiRes]);
 
   return (
     <group position={displayPosition} quaternion={quat}>
@@ -316,7 +345,7 @@ export function CameraRenderedView({
           map={renderTexture}
           transparent
           side={THREE.DoubleSide}
-          opacity={isRendering ? 0.5 : 1}
+          opacity={isRendering ? 0.85 : 1}
         />
       </mesh>
       {/* Border frame */}
