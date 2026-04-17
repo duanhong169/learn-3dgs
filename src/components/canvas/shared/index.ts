@@ -6,4 +6,5 @@ export { ProjectionRays } from './ProjectionRays';
 export { GaussianSplat2D } from './GaussianSplat2D';
 export { PixelProbe } from './PixelProbe';
 export { TargetShapes } from './TargetShapes';
+export { CameraRenderedView } from './CameraRenderedView';
 export { GradientArrow } from './GradientArrow';
