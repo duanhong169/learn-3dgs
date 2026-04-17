@@ -19,10 +19,10 @@ const INSTRUCTION_STEPS = [
 ];
 
 const VIEW_MODE_OPTIONS: { mode: ViewMode; label: string }[] = [
-  { mode: 'gaussian', label: 'Gaussian' },
-  { mode: 'groundTruth', label: 'Ground Truth' },
+  { mode: 'gaussian', label: '高斯云' },
+  { mode: 'groundTruth', label: '真值' },
   { mode: 'overlay', label: '叠加' },
-  { mode: 'cameraRender', label: 'Camera Render' },
+  { mode: 'cameraRender', label: '渲染' },
 ];
 
 export function ReconstructionOverlay() {
@@ -63,13 +63,13 @@ export function ReconstructionOverlay() {
       <div className="pointer-events-auto absolute right-4 top-4 flex max-h-[calc(100vh-12rem)] w-64 flex-col gap-3 overflow-y-auto">
         {/* View mode toggle */}
         <ParameterPanel title="视图模式">
-          <div className="flex gap-1">
+          <div className="grid grid-cols-4 gap-1">
             {VIEW_MODE_OPTIONS.map((opt) => (
               <button
                 key={opt.mode}
                 onClick={() => setViewMode(opt.mode)}
                 className={cn(
-                  'flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors duration-75',
+                  'rounded-md px-1.5 py-1.5 text-xs font-medium transition-colors duration-75 whitespace-nowrap',
                   viewMode === opt.mode
                     ? 'bg-primary text-white'
                     : 'border border-border text-text hover:bg-bg',

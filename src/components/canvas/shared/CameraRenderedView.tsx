@@ -42,6 +42,25 @@ const renderTexture = new THREE.CanvasTexture(renderCanvas);
 renderTexture.minFilter = THREE.LinearFilter;
 renderTexture.magFilter = THREE.LinearFilter;
 
+// Loading indicator texture
+const loadingTexture = (() => {
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 48;
+  const ctx = c.getContext('2d')!;
+  ctx.fillStyle = 'rgba(13, 17, 23, 0.75)';
+  ctx.roundRect(0, 0, 256, 48, 8);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 20px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('渲染中...', 128, 24);
+  const tex = new THREE.CanvasTexture(c);
+  tex.minFilter = THREE.LinearFilter;
+  return tex;
+})();
+
 // ─── View basis computation ───────────────────────────────────────────────────
 
 function computeViewBasis(
@@ -305,11 +324,11 @@ export function CameraRenderedView({
         <edgesGeometry args={[new THREE.PlaneGeometry(displaySize[0], displaySize[1])]} />
         <lineBasicMaterial color="#58a6ff" />
       </lineSegments>
-      {/* Label */}
+      {/* Loading indicator */}
       {isRendering && (
         <mesh position={[0, 0, 0.01]}>
-          <planeGeometry args={[1.6, 0.3]} />
-          <meshBasicMaterial color="#0d1117" transparent opacity={0.8} />
+          <planeGeometry args={[displaySize[0] * 0.5, displaySize[1] * 0.12]} />
+          <meshBasicMaterial map={loadingTexture} transparent depthWrite={false} />
         </mesh>
       )}
     </group>
