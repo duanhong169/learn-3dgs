@@ -286,3 +286,9 @@ chore: upgrade three.js to r175
 - **Do comment why** — explain non-obvious decisions, workarounds
 - **TODO format**: `// TODO: description`
 - No commented-out code in commits
+
+## Temporary Files
+
+- All temporary/generated files (test results, screenshots, debug scripts, exploration notes, etc.) **must be placed in `tmp/`** — never in the project root
+- `tmp/` is gitignored and safe for throwaway content
+- Examples: test plans (`.json`), Playwright screenshots, backup files, generated reports
