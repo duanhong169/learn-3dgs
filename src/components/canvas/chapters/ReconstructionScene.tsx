@@ -3,7 +3,8 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 import { useReconstructionStore } from '@/store/useReconstructionStore';
-import { CameraRenderedView } from '@/components/canvas/shared';
+import { CameraRenderedView } from '@/components/canvas/shared/CameraRenderedView';
+import { CameraFrustum } from '@/components/canvas/shared/CameraFrustum';
 import {
   generateSceneGaussians,
   interpolatePosition,
@@ -108,7 +109,7 @@ function populateInstances(
   );
 }
 
-// ─── Sub-component: Gaussian cloud (owns its own InstancedMesh + animation) ───
+// ─── Sub-component: Gaussian cloud ────────────────────────────────────────────
 
 interface GaussianCloudProps {
   gaussians: ReconGaussian[];
@@ -116,11 +117,6 @@ interface GaussianCloudProps {
   showCenters: boolean;
 }
 
-/**
- * Renders the Gaussian reconstruction as an InstancedMesh.
- * Parent should set `key={densityLevel}` so this remounts on density change,
- * guaranteeing the InstancedMesh count always matches the gaussians array.
- */
 function GaussianCloud({ gaussians, overlayOpacity, showCenters }: GaussianCloudProps) {
   const meshRef = useRef<InstancedMesh>(null);
   const centersRef = useRef<InstancedMesh>(null);
@@ -131,20 +127,17 @@ function GaussianCloud({ gaussians, overlayOpacity, showCenters }: GaussianCloud
   const centerGeo = useMemo(() => new THREE.SphereGeometry(1, 4, 4), []);
   const centerMat = useMemo(() => new THREE.MeshBasicMaterial({ color: '#ffffff' }), []);
 
-  // Keep a ref to latest props for use in useFrame (non-reactive)
   const gaussiansRef = useRef(gaussians);
   gaussiansRef.current = gaussians;
   const overlayRef = useRef(overlayOpacity);
   overlayRef.current = overlayOpacity;
 
-  // Initial population + update when overlayOpacity changes
   useEffect(() => {
     if (!meshRef.current) return;
     const progress = useReconstructionStore.getState().animationProgress;
     populateInstances(meshRef.current, gaussians, progress, overlayOpacity);
   }, [gaussians, overlayOpacity]);
 
-  // Update center dots
   useEffect(() => {
     if (!centersRef.current || !showCenters) return;
     const progress = useReconstructionStore.getState().animationProgress;
@@ -164,7 +157,6 @@ function GaussianCloud({ gaussians, overlayOpacity, showCenters }: GaussianCloud
     centersRef.current.instanceMatrix.needsUpdate = true;
   }, [gaussians, count, showCenters]);
 
-  // Drive animation + keep instances up-to-date every frame when animating
   useFrame((_, delta) => {
     const store = useReconstructionStore.getState();
     if (store.isAnimating && store.animationProgress < 1) {
@@ -174,29 +166,16 @@ function GaussianCloud({ gaussians, overlayOpacity, showCenters }: GaussianCloud
         useReconstructionStore.setState({ isAnimating: false });
       }
       if (meshRef.current) {
-        populateInstances(
-          meshRef.current,
-          gaussiansRef.current,
-          next,
-          overlayRef.current,
-        );
+        populateInstances(meshRef.current, gaussiansRef.current, next, overlayRef.current);
       }
     }
   });
 
   return (
     <>
-      <instancedMesh
-        ref={meshRef}
-        args={[sphereGeo, material, count]}
-        frustumCulled={false}
-      />
+      <instancedMesh ref={meshRef} args={[sphereGeo, material, count]} frustumCulled={false} />
       {showCenters && (
-        <instancedMesh
-          ref={centersRef}
-          args={[centerGeo, centerMat, count]}
-          frustumCulled={false}
-        />
+        <instancedMesh ref={centersRef} args={[centerGeo, centerMat, count]} frustumCulled={false} />
       )}
     </>
   );
@@ -224,7 +203,7 @@ export function ReconstructionScene() {
     [densityLevel],
   );
 
-  // Compute animated gaussians with interpolated positions
+  // Compute animated gaussians with interpolated positions for camera render
   const animatedGaussians = useMemo(() => {
     if (animationProgress >= 1) return gaussians;
     return gaussians.map((g) => ({
@@ -233,34 +212,78 @@ export function ReconstructionScene() {
     }));
   }, [gaussians, animationProgress]);
 
-  // Compute camera position from spherical coordinates
-  const cameraPos = useMemo(() => {
+  // Virtual camera position from spherical coordinates
+  const virtualCameraPos = useMemo((): Tuple3 => {
     const azRad = (cameraAzimuth * Math.PI) / 180;
     const elRad = (cameraElevation * Math.PI) / 180;
     return [
       cameraDistance * Math.cos(elRad) * Math.sin(azRad),
-      cameraDistance * Math.sin(elRad),
+      cameraDistance * Math.sin(elRad) + 0.25,
       cameraDistance * Math.cos(elRad) * Math.cos(azRad),
-    ] as Tuple3;
+    ];
   }, [cameraAzimuth, cameraElevation, cameraDistance]);
 
   const cameraLookAt: Tuple3 = [0, 0.25, 0];
 
+  // Show gaussian cloud in gaussian, overlay, AND cameraRender modes
   const showGroundTruth = viewMode === 'groundTruth' || viewMode === 'overlay';
-  const showGaussians = viewMode === 'gaussian' || viewMode === 'overlay';
+  const showGaussians = viewMode === 'gaussian' || viewMode === 'overlay' || viewMode === 'cameraRender';
   const showCameraRender = viewMode === 'cameraRender';
   const gtOpacity = viewMode === 'overlay' ? 0.35 : 1;
-  const gaussianOpacity = viewMode === 'overlay' ? 0.7 : 1;
+  const gaussianOpacity =
+    viewMode === 'overlay' ? 0.7 : viewMode === 'cameraRender' ? 0.4 : 1;
+
+  // Compute the frustum far-plane center and orientation so the rendered
+  // image sits exactly on the camera frustum's far plane, facing the camera.
+  const frustumFar = cameraDistance * 0.6;
+  const frustumFov = 45;
+
+  const { displayPosition, displayQuaternion, displaySize } = useMemo(() => {
+    // Direction from camera to lookAt
+    const dx = cameraLookAt[0] - virtualCameraPos[0];
+    const dy = cameraLookAt[1] - virtualCameraPos[1];
+    const dz = cameraLookAt[2] - virtualCameraPos[2];
+    const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    const fwd: Tuple3 = [dx / len, dy / len, dz / len];
+
+    // Far-plane center = camera + forward * far
+    const farCenter: Tuple3 = [
+      virtualCameraPos[0] + fwd[0] * frustumFar,
+      virtualCameraPos[1] + fwd[1] * frustumFar,
+      virtualCameraPos[2] + fwd[2] * frustumFar,
+    ];
+
+    // Size of the far plane (matches frustum geometry)
+    const halfH = Math.tan((frustumFov * Math.PI) / 360) * frustumFar;
+    const planeSize: [number, number] = [halfH * 2, halfH * 2]; // aspect=1
+
+    // Build a rotation that makes the plane face toward the camera.
+    // Plane default normal = +Z. We need it pointing from farCenter → cameraPos.
+    const backDir = new THREE.Vector3(
+      virtualCameraPos[0] - farCenter[0],
+      virtualCameraPos[1] - farCenter[1],
+      virtualCameraPos[2] - farCenter[2],
+    ).normalize();
+
+    // Build an orthonormal basis: right, up, forward (= backDir)
+    const worldUp = new THREE.Vector3(0, 1, 0);
+    const right = new THREE.Vector3().crossVectors(worldUp, backDir).normalize();
+    const up = new THREE.Vector3().crossVectors(backDir, right).normalize();
+
+    // Construct rotation matrix from basis (columns = right, up, backDir)
+    const rotMatrix = new THREE.Matrix4().makeBasis(right, up, backDir);
+    const quat = new THREE.Quaternion().setFromRotationMatrix(rotMatrix);
+    const q: [number, number, number, number] = [quat.x, quat.y, quat.z, quat.w];
+
+    return { displayPosition: farCenter, displayQuaternion: q, displaySize: planeSize };
+  }, [virtualCameraPos, cameraLookAt, frustumFar, frustumFov]);
 
   return (
     <group>
       {/* Ground Truth geometry */}
       {showGroundTruth && (
         <group>
-          <mesh
-            position={SCENE_OBJECTS.ground.center}
-            rotation={[-Math.PI / 2, 0, 0]}
-          >
+          <mesh position={SCENE_OBJECTS.ground.center} rotation={[-Math.PI / 2, 0, 0]}>
             <planeGeometry args={[SCENE_OBJECTS.ground.sizeX, SCENE_OBJECTS.ground.sizeZ]} />
             <meshStandardMaterial
               color={SCENE_OBJECTS.ground.color}
@@ -269,7 +292,6 @@ export function ReconstructionScene() {
               opacity={gtOpacity}
             />
           </mesh>
-
           <mesh position={SCENE_OBJECTS.sphere.center}>
             <sphereGeometry args={[SCENE_OBJECTS.sphere.radius, 32, 32]} />
             <meshStandardMaterial
@@ -279,7 +301,6 @@ export function ReconstructionScene() {
               opacity={gtOpacity}
             />
           </mesh>
-
           <mesh position={SCENE_OBJECTS.box.center}>
             <boxGeometry args={SCENE_OBJECTS.box.size} />
             <meshStandardMaterial
@@ -289,7 +310,6 @@ export function ReconstructionScene() {
               opacity={gtOpacity}
             />
           </mesh>
-
           <mesh position={SCENE_OBJECTS.cylinder.center}>
             <cylinderGeometry
               args={[
@@ -309,10 +329,7 @@ export function ReconstructionScene() {
         </group>
       )}
 
-      {/*
-        key={densityLevel} forces GaussianCloud to fully unmount/remount
-        when density changes, so the InstancedMesh count is always correct.
-      */}
+      {/* Gaussian cloud — visible in gaussian, overlay, and cameraRender modes */}
       {showGaussians && (
         <GaussianCloud
           key={densityLevel}
@@ -322,16 +339,33 @@ export function ReconstructionScene() {
         />
       )}
 
-      {/* Camera rendered view - 2D canvas rendering of Gaussians */}
+      {/* Camera Render mode: virtual camera frustum + rendered image */}
       {showCameraRender && (
-        <CameraRenderedView
-          key={`${densityLevel}-${animationProgress}`}
-          gaussians={animatedGaussians}
-          cameraPos={cameraPos}
-          cameraLookAt={cameraLookAt}
-          focalLength={cameraFocalLength}
-          usePixelEvaluation={useCameraPixelEvaluation}
-        />
+        <>
+          {/* Virtual camera frustum visualization */}
+          <CameraFrustum
+            position={virtualCameraPos}
+            lookAt={cameraLookAt}
+            fov={45}
+            aspect={1}
+            near={0.3}
+            far={cameraDistance * 0.6}
+            color="#58a6ff"
+          />
+
+          {/* 2D rendered view — placed on the frustum far plane */}
+          <CameraRenderedView
+            key={`render-${densityLevel}-${cameraAzimuth}-${cameraElevation}-${cameraDistance}-${cameraFocalLength}-${useCameraPixelEvaluation}`}
+            gaussians={animatedGaussians}
+            cameraPos={virtualCameraPos}
+            cameraLookAt={cameraLookAt}
+            focalLength={cameraFocalLength}
+            usePixelEvaluation={useCameraPixelEvaluation}
+            displayPosition={displayPosition}
+            displayQuaternion={displayQuaternion}
+            displaySize={displaySize}
+          />
+        </>
       )}
     </group>
   );

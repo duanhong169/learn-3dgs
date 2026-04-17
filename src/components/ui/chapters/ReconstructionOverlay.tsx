@@ -150,8 +150,8 @@ export function ReconstructionOverlay() {
             <ParamSlider
               label="焦距"
               value={cameraFocalLength}
-              min={100}
-              max={1000}
+              min={50}
+              max={600}
               step={10}
               onChange={setCameraFocalLength}
             />

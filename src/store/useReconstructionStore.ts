@@ -57,7 +57,7 @@ const INITIAL_STATE = {
   cameraAzimuth: 45,
   cameraElevation: 30,
   cameraDistance: 5,
-  cameraFocalLength: 500,
+  cameraFocalLength: 250,
   useCameraPixelEvaluation: true,
 };
 
