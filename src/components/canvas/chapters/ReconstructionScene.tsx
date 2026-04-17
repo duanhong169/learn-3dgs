@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 import { useReconstructionStore } from '@/store/useReconstructionStore';
+import { CameraRenderedView } from '@/components/canvas/shared';
 import {
   generateSceneGaussians,
   interpolatePosition,
@@ -211,14 +212,43 @@ export function ReconstructionScene() {
   const densityLevel = useReconstructionStore((s) => s.densityLevel);
   const showWireframe = useReconstructionStore((s) => s.showWireframe);
   const showGaussianCenters = useReconstructionStore((s) => s.showGaussianCenters);
+  const animationProgress = useReconstructionStore((s) => s.animationProgress);
+  const cameraAzimuth = useReconstructionStore((s) => s.cameraAzimuth);
+  const cameraElevation = useReconstructionStore((s) => s.cameraElevation);
+  const cameraDistance = useReconstructionStore((s) => s.cameraDistance);
+  const cameraFocalLength = useReconstructionStore((s) => s.cameraFocalLength);
+  const useCameraPixelEvaluation = useReconstructionStore((s) => s.useCameraPixelEvaluation);
 
   const gaussians = useMemo(
     () => generateSceneGaussians(densityLevel),
     [densityLevel],
   );
 
+  // Compute animated gaussians with interpolated positions
+  const animatedGaussians = useMemo(() => {
+    if (animationProgress >= 1) return gaussians;
+    return gaussians.map((g) => ({
+      ...g,
+      position: interpolatePosition(g.initialPosition, g.position, animationProgress),
+    }));
+  }, [gaussians, animationProgress]);
+
+  // Compute camera position from spherical coordinates
+  const cameraPos = useMemo(() => {
+    const azRad = (cameraAzimuth * Math.PI) / 180;
+    const elRad = (cameraElevation * Math.PI) / 180;
+    return [
+      cameraDistance * Math.cos(elRad) * Math.sin(azRad),
+      cameraDistance * Math.sin(elRad),
+      cameraDistance * Math.cos(elRad) * Math.cos(azRad),
+    ] as Tuple3;
+  }, [cameraAzimuth, cameraElevation, cameraDistance]);
+
+  const cameraLookAt: Tuple3 = [0, 0.25, 0];
+
   const showGroundTruth = viewMode === 'groundTruth' || viewMode === 'overlay';
   const showGaussians = viewMode === 'gaussian' || viewMode === 'overlay';
+  const showCameraRender = viewMode === 'cameraRender';
   const gtOpacity = viewMode === 'overlay' ? 0.35 : 1;
   const gaussianOpacity = viewMode === 'overlay' ? 0.7 : 1;
 
@@ -289,6 +319,18 @@ export function ReconstructionScene() {
           gaussians={gaussians}
           overlayOpacity={gaussianOpacity}
           showCenters={showGaussianCenters}
+        />
+      )}
+
+      {/* Camera rendered view - 2D canvas rendering of Gaussians */}
+      {showCameraRender && (
+        <CameraRenderedView
+          key={`${densityLevel}-${animationProgress}`}
+          gaussians={animatedGaussians}
+          cameraPos={cameraPos}
+          cameraLookAt={cameraLookAt}
+          focalLength={cameraFocalLength}
+          usePixelEvaluation={useCameraPixelEvaluation}
         />
       )}
     </group>

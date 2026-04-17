@@ -22,6 +22,7 @@ const VIEW_MODE_OPTIONS: { mode: ViewMode; label: string }[] = [
   { mode: 'gaussian', label: 'Gaussian' },
   { mode: 'groundTruth', label: 'Ground Truth' },
   { mode: 'overlay', label: '叠加' },
+  { mode: 'cameraRender', label: 'Camera Render' },
 ];
 
 export function ReconstructionOverlay() {
@@ -31,6 +32,11 @@ export function ReconstructionOverlay() {
   const animationProgress = useReconstructionStore((s) => s.animationProgress);
   const showWireframe = useReconstructionStore((s) => s.showWireframe);
   const showGaussianCenters = useReconstructionStore((s) => s.showGaussianCenters);
+  const cameraAzimuth = useReconstructionStore((s) => s.cameraAzimuth);
+  const cameraElevation = useReconstructionStore((s) => s.cameraElevation);
+  const cameraDistance = useReconstructionStore((s) => s.cameraDistance);
+  const cameraFocalLength = useReconstructionStore((s) => s.cameraFocalLength);
+  const useCameraPixelEvaluation = useReconstructionStore((s) => s.useCameraPixelEvaluation);
 
   const setViewMode = useReconstructionStore((s) => s.setViewMode);
   const setDensityLevel = useReconstructionStore((s) => s.setDensityLevel);
@@ -38,6 +44,11 @@ export function ReconstructionOverlay() {
   const setAnimationProgress = useReconstructionStore((s) => s.setAnimationProgress);
   const toggleWireframe = useReconstructionStore((s) => s.toggleWireframe);
   const toggleGaussianCenters = useReconstructionStore((s) => s.toggleGaussianCenters);
+  const setCameraAzimuth = useReconstructionStore((s) => s.setCameraAzimuth);
+  const setCameraElevation = useReconstructionStore((s) => s.setCameraElevation);
+  const setCameraDistance = useReconstructionStore((s) => s.setCameraDistance);
+  const setCameraFocalLength = useReconstructionStore((s) => s.setCameraFocalLength);
+  const toggleCameraPixelEvaluation = useReconstructionStore((s) => s.toggleCameraPixelEvaluation);
   const reset = useReconstructionStore((s) => s.reset);
 
   // Compute gaussian count (memoized to avoid regenerating full array on every render)
@@ -108,6 +119,49 @@ export function ReconstructionOverlay() {
             onChange={setAnimationProgress}
           />
         </ParameterPanel>
+
+        {/* Camera render controls */}
+        {viewMode === 'cameraRender' && (
+          <ParameterPanel title="相机控制">
+            <ParamSlider
+              label="方位角"
+              value={cameraAzimuth}
+              min={0}
+              max={360}
+              step={1}
+              onChange={setCameraAzimuth}
+            />
+            <ParamSlider
+              label="仰角"
+              value={cameraElevation}
+              min={-90}
+              max={90}
+              step={1}
+              onChange={setCameraElevation}
+            />
+            <ParamSlider
+              label="距离"
+              value={cameraDistance}
+              min={1}
+              max={15}
+              step={0.1}
+              onChange={setCameraDistance}
+            />
+            <ParamSlider
+              label="焦距"
+              value={cameraFocalLength}
+              min={100}
+              max={1000}
+              step={10}
+              onChange={setCameraFocalLength}
+            />
+            <ParamToggle
+              label="像素精评"
+              value={useCameraPixelEvaluation}
+              onChange={toggleCameraPixelEvaluation}
+            />
+          </ParameterPanel>
+        )}
 
         {/* Display options */}
         <ParameterPanel title="显示选项">

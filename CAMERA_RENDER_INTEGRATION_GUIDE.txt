@@ -1,0 +1,116 @@
+CAMERA RENDERED VIEW - INTEGRATION GUIDE
+=========================================
+
+Files Created:
+- src/components/canvas/shared/CameraRenderedView.tsx (280 lines)
+
+Files Updated:
+- src/store/useReconstructionStore.ts (added camera controls)
+- src/components/canvas/shared/index.ts (export added)
+
+Ready for Integration:
+- src/components/ui/chapters/ReconstructionOverlay.tsx
+- src/components/canvas/chapters/ReconstructionScene.tsx
+
+STEP 1: Update ReconstructionOverlay.tsx
+========================================
+
+1. Import the component (if needed):
+   import { CameraRenderedView } from '@/components/canvas/shared/CameraRenderedView';
+
+2. Get store values:
+   const cameraAzimuth = useReconstructionStore((s) => s.cameraAzimuth);
+   const cameraElevation = useReconstructionStore((s) => s.cameraElevation);
+   const cameraDistance = useReconstructionStore((s) => s.cameraDistance);
+   const cameraFocalLength = useReconstructionStore((s) => s.cameraFocalLength);
+   const useCameraPixelEvaluation = useReconstructionStore((s) => s.useCameraPixelEvaluation);
+
+3. Get setters:
+   const setCameraAzimuth = useReconstructionStore((s) => s.setCameraAzimuth);
+   const setCameraElevation = useReconstructionStore((s) => s.setCameraElevation);
+   const setCameraDistance = useReconstructionStore((s) => s.setCameraDistance);
+   const setCameraFocalLength = useReconstructionStore((s) => s.setCameraFocalLength);
+   const toggleCameraPixelEvaluation = useReconstructionStore((s) => s.toggleCameraPixelEvaluation);
+
+4. Add view mode option:
+   { mode: 'cameraRender', label: 'Camera Render' }
+
+5. Add camera controls panel (new ParameterPanel section):
+   - Azimuth slider: 0-360 degrees
+   - Elevation slider: -90 to 90 degrees
+   - Distance slider: 1-15 units
+   - Focal length slider: 100-1000 pixels
+   - Pixel evaluation toggle
+
+STEP 2: Update ReconstructionScene.tsx
+======================================
+
+1. Import CameraRenderedView:
+   import { CameraRenderedView } from '@/components/canvas/shared/CameraRenderedView';
+
+2. Get camera controls from store:
+   const cameraAzimuth = useReconstructionStore((s) => s.cameraAzimuth);
+   const cameraElevation = useReconstructionStore((s) => s.cameraElevation);
+   const cameraDistance = useReconstructionStore((s) => s.cameraDistance);
+   const cameraFocalLength = useReconstructionStore((s) => s.cameraFocalLength);
+   const useCameraPixelEvaluation = useReconstructionStore((s) => s.useCameraPixelEvaluation);
+
+3. Compute camera position:
+   const cameraPos = useMemo(() => {
+     const azRad = (cameraAzimuth * Math.PI) / 180;
+     const elRad = (cameraElevation * Math.PI) / 180;
+     return [
+       cameraDistance * Math.cos(elRad) * Math.sin(azRad),
+       cameraDistance * Math.sin(elRad),
+       cameraDistance * Math.cos(elRad) * Math.cos(azRad),
+     ];
+   }, [cameraAzimuth, cameraElevation, cameraDistance]);
+
+4. Define look-at point:
+   const cameraLookAt: Tuple3 = [0, 0.25, 0];
+
+5. Apply animation to gaussians:
+   const animatedGaussians = useMemo(() => {
+     if (animationProgress >= 1) return gaussians;
+     return gaussians.map((g) => ({
+       ...g,
+       position: interpolatePosition(g.initialPosition, g.position, animationProgress),
+     }));
+   }, [gaussians, animationProgress]);
+
+6. Add render flag:
+   const showCameraRender = viewMode === 'cameraRender';
+
+7. Add to JSX (after GaussianCloud):
+   {showCameraRender && (
+     <CameraRenderedView
+       key={`${densityLevel}-${animationProgress}`}
+       gaussians={animatedGaussians}
+       cameraPos={cameraPos}
+       cameraLookAt={cameraLookAt}
+       focalLength={cameraFocalLength}
+       usePixelEvaluation={useCameraPixelEvaluation}
+     />
+   )}
+
+EXPECTED BEHAVIOR
+=================
+
+1. New "Camera Render" view mode button appears
+2. When selected, shows camera control panel
+3. 512x512 canvas renders Gaussians from camera viewpoint
+4. Camera position updates in real-time
+5. Animation shows splats converging
+6. Density changes update Gaussian count
+7. Pixel evaluation toggle switches rendering quality
+
+STATUS
+======
+
+✓ Component fully implemented
+✓ Store extended with camera controls
+✓ Type checking passes
+✓ Build succeeds
+✓ Ready for UI integration
+
+Next: Integrate with ReconstructionOverlay and ReconstructionScene
