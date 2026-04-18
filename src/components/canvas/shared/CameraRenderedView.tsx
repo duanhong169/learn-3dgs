@@ -225,9 +225,12 @@ function renderGaussianCameraView(
   const imageData = ctx.createImageData(w, h);
   const data = imageData.data;
 
-  // Background color (dark)
+  // Background color (dark) — filled first; composited pixels will blend onto it.
+  const BG_R = 13;
+  const BG_G = 17;
+  const BG_B = 23;
   for (let i = 0; i < data.length; i += 4) {
-    data[i] = 13; data[i + 1] = 17; data[i + 2] = 23; data[i + 3] = 255;
+    data[i] = BG_R; data[i + 1] = BG_G; data[i + 2] = BG_B; data[i + 3] = 255;
   }
 
   // Per-pixel splatting
@@ -264,10 +267,11 @@ function renderGaussianCameraView(
       }
 
       if (colors.length > 0) {
-        const { finalColor } = alphaComposite(colors, opacities);
-        data[pixelIdx] = Math.round(finalColor[0] * 255);
-        data[pixelIdx + 1] = Math.round(finalColor[1] * 255);
-        data[pixelIdx + 2] = Math.round(finalColor[2] * 255);
+        const { finalColor, finalTransmittance } = alphaComposite(colors, opacities);
+        // Composite splat color over background:  C = C_splats + T_final · C_bg
+        data[pixelIdx] = Math.round(finalColor[0] * 255 + finalTransmittance * BG_R);
+        data[pixelIdx + 1] = Math.round(finalColor[1] * 255 + finalTransmittance * BG_G);
+        data[pixelIdx + 2] = Math.round(finalColor[2] * 255 + finalTransmittance * BG_B);
         data[pixelIdx + 3] = 255;
       }
     }

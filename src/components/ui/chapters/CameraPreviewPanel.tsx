@@ -25,7 +25,7 @@ function computeSize(level: SizeLevel) {
 export function CameraPreviewPanel() {
   const containerRef = useRef<HTMLDivElement>(null);
   const toggleCameraPreview = useReconstructionStore((s) => s.toggleCameraPreview);
-  const [sizeLevel, setSizeLevel] = useState<SizeLevel>(1);
+  const [sizeLevel, setSizeLevel] = useState<SizeLevel>(2);
 
   const { width, height } = computeSize(sizeLevel);
 

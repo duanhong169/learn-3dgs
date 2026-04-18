@@ -8,7 +8,12 @@
 export function alphaComposite(
   colors: Array<[number, number, number]>,
   opacities: number[],
-): { finalColor: [number, number, number]; steps: AlphaBlendStep[] } {
+): {
+  finalColor: [number, number, number];
+  /** Remaining transmittance after all splats — multiply with background color to composite. */
+  finalTransmittance: number;
+  steps: AlphaBlendStep[];
+} {
   const steps: AlphaBlendStep[] = [];
   let transmittance = 1;
   let r = 0;
@@ -41,6 +46,7 @@ export function alphaComposite(
 
   return {
     finalColor: [r, g, b],
+    finalTransmittance: transmittance,
     steps,
   };
 }
