@@ -5,6 +5,7 @@ import { buildCovarianceMatrix } from '@/utils/math';
 import {
   computeProjectionJacobian,
   projectCovariance3Dto2D,
+  rotateCovariance3D,
   covarianceToEllipse,
 } from '@/utils/projection';
 import { alphaComposite } from '@/utils/blending';
@@ -27,23 +28,26 @@ export interface CameraRenderedViewProps {
   displaySize?: [number, number];
 }
 
-// Resolution constants
-const HI_RES = 256;
-const LO_RES = 64;
+// Resolution constants (16:9 aspect ratio)
+const ASPECT = 16 / 9;
+export const HI_W = 288;
+export const HI_H = Math.round(HI_W / ASPECT); // 162
+const LO_W = 80;
+const LO_H = Math.round(LO_W / ASPECT); // 45
 const DEBOUNCE_MS = 300;
 
 // Two canvases: one for quick low-res preview, one for final high-res
 const loCanvas = (() => {
   const c = document.createElement('canvas');
-  c.width = LO_RES;
-  c.height = LO_RES;
+  c.width = LO_W;
+  c.height = LO_H;
   return c;
 })();
 
-const hiCanvas = (() => {
+export const hiCanvas = (() => {
   const c = document.createElement('canvas');
-  c.width = HI_RES;
-  c.height = HI_RES;
+  c.width = HI_W;
+  c.height = HI_H;
   return c;
 })();
 
@@ -114,13 +118,14 @@ function worldToCamera(
 function projectToScreen(
   camPos: Tuple3,
   focalLength: number,
-  resolution: number,
+  width: number,
+  height: number,
 ): [number, number, number] {
   const depth = Math.max(0.01, camPos[2]);
-  const fx = focalLength * (resolution / 512);
-  const halfRes = resolution / 2;
-  const pixelX = (camPos[0] * fx) / depth + halfRes;
-  const pixelY = -(camPos[1] * fx) / depth + halfRes;
+  // Scale focal length relative to the shorter dimension (height) for consistency
+  const fx = focalLength * (height / 512);
+  const pixelX = (camPos[0] * fx) / depth + width / 2;
+  const pixelY = -(camPos[1] * fx) / depth + height / 2;
   return [pixelX, pixelY, depth];
 }
 
@@ -172,7 +177,7 @@ function renderGaussianCameraView(
   const h = canvas.height;
   const viewBasis = computeViewBasis(cameraPos, cameraLookAt);
 
-  const fx = focalLength * (w / 512);
+  const fx = focalLength * (h / 512);
 
   // Project all gaussians to screen space
   const projected: ProjectedSplat[] = [];
@@ -181,13 +186,23 @@ function renderGaussianCameraView(
     const camCoord = worldToCamera(g.position, viewBasis);
     if (camCoord[2] < 0.01) continue;
 
-    const [pixelX, pixelY, depth] = projectToScreen(camCoord, focalLength, w);
+    const [pixelX, pixelY, depth] = projectToScreen(camCoord, focalLength, w, h);
     const margin = 100;
     if (pixelX < -margin || pixelX > w + margin || pixelY < -margin || pixelY > h + margin) continue;
 
-    const cov3D = buildCovarianceMatrix(g.scale, g.rotation);
+    // Σ_world → Σ_cam via W (world→camera rotation), then Σ_cam → Σ_screen via J.
+    // Skipping the W rotation is only correct when the camera looks down −Z
+    // in world space; for an orbit camera it produces severe distortion
+    // (ground flattens into a cone, spheres become pancakes, etc).
+    const cov3DWorld = buildCovarianceMatrix(g.scale, g.rotation);
+    const cov3DCam = rotateCovariance3D(
+      cov3DWorld,
+      viewBasis.right,
+      viewBasis.up,
+      viewBasis.forward,
+    );
     const jacobian = computeProjectionJacobian(camCoord[0], camCoord[1], camCoord[2], fx, fx);
-    const cov2D = projectCovariance3Dto2D(cov3D, jacobian);
+    const cov2D = projectCovariance3Dto2D(cov3DCam, jacobian);
     const ellipse = covarianceToEllipse(cov2D);
 
     projected.push({
@@ -259,11 +274,6 @@ function renderGaussianCameraView(
   }
 
   ctx.putImageData(imageData, 0, 0);
-
-  // HUD overlay text
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-  ctx.font = `bold ${Math.round(w * 0.043)}px monospace`;
-  ctx.fillText(`3DGS Rendered View  (${projected.length} splats)`, 6, Math.round(w * 0.055));
 }
 
 /**
@@ -275,7 +285,7 @@ function commitToTexture(source: HTMLCanvasElement): void {
   if (!ctx) return;
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'medium';
-  ctx.drawImage(source, 0, 0, HI_RES, HI_RES);
+  ctx.drawImage(source, 0, 0, HI_W, HI_H);
   renderTexture.needsUpdate = true;
 }
 
@@ -293,7 +303,7 @@ export function CameraRenderedView({
   gaussians,
   cameraPos,
   cameraLookAt,
-  focalLength = 500,
+  focalLength = 350,
   usePixelEvaluation = true,
   displayPosition = [0, 2.5, -4],
   displayQuaternion = [0, 0, 0, 1],

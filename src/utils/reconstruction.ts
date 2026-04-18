@@ -183,19 +183,26 @@ export const SCENE_OBJECTS = {
   },
 };
 
-/**
- * Gaussian counts per density level (1-5) per object.
- * Mix of volume and surface samples so objects look solid.
- */
-const DENSITY_COUNTS = {
-  1: { ground: 80,  sphere: 60,  box: 50,  cylinder: 45 },
-  2: { ground: 160, sphere: 120, box: 100, cylinder: 90 },
-  3: { ground: 300, sphere: 200, box: 160, cylinder: 140 },
-  4: { ground: 500, sphere: 350, box: 280, cylinder: 250 },
-  5: { ground: 700, sphere: 500, box: 400, cylinder: 350 },
-} as const;
+type DensityLevel = 1 | 2 | 3 | 4 | 5;
 
-type DensityLevel = keyof typeof DENSITY_COUNTS;
+/**
+ * Splat density (count per m² of surface area) per density level.
+ * Using area-based allocation instead of hand-picked counts ensures
+ * each object gets roughly the same visual coverage regardless of size.
+ */
+const SURFACE_DENSITY: Record<DensityLevel, number> = {
+  1: 6,
+  2: 12,
+  3: 22,
+  4: 32,
+  5: 42,
+};
+
+/**
+ * Multiplier for solid (volumetric) objects: we need extra splats to fill
+ * the interior on top of the surface coverage.
+ */
+const SOLID_FILL_MULTIPLIER = 1.5;
 
 /** Gaussian scale per density level — smaller gaussians for finer detail. */
 const DENSITY_SCALE: Record<DensityLevel, number> = {
@@ -206,15 +213,40 @@ const DENSITY_SCALE: Record<DensityLevel, number> = {
   5: 0.07,
 };
 
+// --- Surface areas (m²) for each scene object — computed once ---
+
+const GROUND_AREA =
+  SCENE_OBJECTS.ground.sizeX * SCENE_OBJECTS.ground.sizeZ;
+const SPHERE_AREA = 4 * Math.PI * SCENE_OBJECTS.sphere.radius ** 2;
+const BOX_AREA = (() => {
+  const [sx, sy, sz] = SCENE_OBJECTS.box.size;
+  return 2 * (sx * sy + sy * sz + sx * sz);
+})();
+const CYL_AREA = (() => {
+  const r = SCENE_OBJECTS.cylinder.radius;
+  const h = SCENE_OBJECTS.cylinder.height;
+  return 2 * Math.PI * r * h + 2 * Math.PI * r * r;
+})();
+
 /**
  * Generate Gaussian parameters that approximate the scene geometry.
  * Uses a seeded RNG so results are deterministic for each density level.
  */
 export function generateSceneGaussians(densityLevel: number): ReconGaussian[] {
   const level = Math.max(1, Math.min(5, Math.round(densityLevel))) as DensityLevel;
-  const counts = DENSITY_COUNTS[level];
+  const density = SURFACE_DENSITY[level];
   const baseScale = DENSITY_SCALE[level];
   const rng = createRng(42 + level);
+
+  // Area-proportional splat counts.
+  // Solid objects (sphere/box/cylinder) get an extra fill multiplier
+  // to cover interior volume on top of surface coverage.
+  const counts = {
+    ground: Math.round(GROUND_AREA * density),
+    sphere: Math.round(SPHERE_AREA * density * SOLID_FILL_MULTIPLIER),
+    box: Math.round(BOX_AREA * density * SOLID_FILL_MULTIPLIER),
+    cylinder: Math.round(CYL_AREA * density * SOLID_FILL_MULTIPLIER),
+  };
 
   const gaussians: ReconGaussian[] = [];
   let id = 0;
@@ -224,6 +256,7 @@ export function generateSceneGaussians(densityLevel: number): ReconGaussian[] {
     colorHex: string,
     scaleMultiplier: Tuple3 = [1, 1, 1],
     opacityBase = 0.85,
+    lockFlatToGround = false,
   ) => {
     const gs = baseScale;
     // Slight color variation for a more natural look
@@ -247,7 +280,9 @@ export function generateSceneGaussians(densityLevel: number): ReconGaussian[] {
         gs * scaleMultiplier[1] * (0.8 + rng() * 0.4),
         gs * scaleMultiplier[2] * (0.8 + rng() * 0.4),
       ],
-      rotation: [rng() * 360, rng() * 360, rng() * 360],
+      rotation: lockFlatToGround
+        ? [0, rng() * 360, 0]
+        : [rng() * 360, rng() * 360, rng() * 360],
       color,
       opacity: opacityBase + rng() * (1 - opacityBase),
     });
@@ -261,7 +296,7 @@ export function generateSceneGaussians(densityLevel: number): ReconGaussian[] {
       SCENE_OBJECTS.ground.sizeZ,
       rng,
     );
-    addGaussian(pos, SCENE_OBJECTS.ground.color, [1.0, 0.15, 1.0], 0.9);
+    addGaussian(pos, SCENE_OBJECTS.ground.color, [1.4, 0.15, 1.4], 0.9, true);
   }
 
   // Sphere — mix volume (60%) and surface (40%)

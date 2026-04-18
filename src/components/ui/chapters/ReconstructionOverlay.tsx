@@ -8,6 +8,8 @@ import { ParamToggle } from '@/components/ui/shared/ParamToggle';
 import { generateSceneGaussians } from '@/utils/reconstruction';
 import { cn } from '@/lib/utils';
 
+import { CameraPreviewPanel } from './CameraPreviewPanel';
+
 import type { ViewMode } from '@/store/useReconstructionStore';
 
 const INSTRUCTION_STEPS = [
@@ -37,6 +39,7 @@ export function ReconstructionOverlay() {
   const cameraDistance = useReconstructionStore((s) => s.cameraDistance);
   const cameraFocalLength = useReconstructionStore((s) => s.cameraFocalLength);
   const useCameraPixelEvaluation = useReconstructionStore((s) => s.useCameraPixelEvaluation);
+  const showCameraPreview = useReconstructionStore((s) => s.showCameraPreview);
 
   const setViewMode = useReconstructionStore((s) => s.setViewMode);
   const setDensityLevel = useReconstructionStore((s) => s.setDensityLevel);
@@ -49,6 +52,7 @@ export function ReconstructionOverlay() {
   const setCameraDistance = useReconstructionStore((s) => s.setCameraDistance);
   const setCameraFocalLength = useReconstructionStore((s) => s.setCameraFocalLength);
   const toggleCameraPixelEvaluation = useReconstructionStore((s) => s.toggleCameraPixelEvaluation);
+  const toggleCameraPreview = useReconstructionStore((s) => s.toggleCameraPreview);
   const reset = useReconstructionStore((s) => s.reset);
 
   // Compute gaussian count (memoized to avoid regenerating full array on every render)
@@ -160,6 +164,11 @@ export function ReconstructionOverlay() {
               value={useCameraPixelEvaluation}
               onChange={toggleCameraPixelEvaluation}
             />
+            <ParamToggle
+              label="显示预览浮窗"
+              value={showCameraPreview}
+              onChange={toggleCameraPreview}
+            />
           </ParameterPanel>
         )}
 
@@ -179,6 +188,9 @@ export function ReconstructionOverlay() {
 
       {/* Instruction panel — bottom right */}
       <InstructionPanel steps={INSTRUCTION_STEPS} />
+
+      {/* Camera view preview — bottom left, only in cameraRender mode */}
+      {viewMode === 'cameraRender' && showCameraPreview && <CameraPreviewPanel />}
     </>
   );
 }

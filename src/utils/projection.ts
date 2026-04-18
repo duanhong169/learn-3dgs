@@ -20,11 +20,17 @@ export function computeProjectionJacobian(
 }
 
 /**
- * Project a 3D covariance matrix to 2D screen space.
- * Σ' = J · W · Σ · Wᵀ · Jᵀ
+ * Project a 3D covariance matrix (in CAMERA space) to 2D screen space.
+ * Σ_screen = J · Σ_cam · Jᵀ
  *
- * For simplicity, we assume W (view matrix rotation part) = I,
- * so Σ' = J · Σ · Jᵀ
+ * IMPORTANT: `cov3D` MUST already be expressed in camera space. If you have a
+ * world-space covariance Σ_world, first rotate it into camera space with the
+ * world→camera rotation W: Σ_cam = W · Σ_world · Wᵀ. See
+ * {@link rotateCovariance3D} for a helper.
+ *
+ * Skipping the W rotation only works when the camera looks straight down the
+ * world −Z axis; otherwise every Gaussian gets its depth axis confused with the
+ * world Z axis and the reconstruction looks distorted (pancaked, sheared, etc).
  *
  * J is 2×3, Σ is 3×3, result is 2×2.
  */
@@ -90,5 +96,51 @@ export function formatMatrix2(m: Matrix2, decimals = 2): string[][] {
   return [
     [m[0].toFixed(decimals), m[1].toFixed(decimals)],
     [m[2].toFixed(decimals), m[3].toFixed(decimals)],
+  ];
+}
+
+/**
+ * Rotate a world-space 3×3 covariance into camera space.
+ * Σ_cam = W · Σ_world · Wᵀ
+ *
+ * W is the world→camera rotation. Its rows are the camera basis vectors
+ * expressed in world coordinates: row0 = right, row1 = up, row2 = forward.
+ * (This matches the convention used by `worldToCamera` elsewhere.)
+ */
+export function rotateCovariance3D(
+  cov3DWorld: Matrix3,
+  right: [number, number, number],
+  up: [number, number, number],
+  forward: [number, number, number],
+): Matrix3 {
+  // W (3×3, row-major): rows = right, up, forward
+  const w00 = right[0],   w01 = right[1],   w02 = right[2];
+  const w10 = up[0],      w11 = up[1],      w12 = up[2];
+  const w20 = forward[0], w21 = forward[1], w22 = forward[2];
+
+  const s = cov3DWorld;
+
+  // T = W · Σ (3×3)
+  const t00 = w00 * s[0] + w01 * s[3] + w02 * s[6];
+  const t01 = w00 * s[1] + w01 * s[4] + w02 * s[7];
+  const t02 = w00 * s[2] + w01 * s[5] + w02 * s[8];
+  const t10 = w10 * s[0] + w11 * s[3] + w12 * s[6];
+  const t11 = w10 * s[1] + w11 * s[4] + w12 * s[7];
+  const t12 = w10 * s[2] + w11 * s[5] + w12 * s[8];
+  const t20 = w20 * s[0] + w21 * s[3] + w22 * s[6];
+  const t21 = w20 * s[1] + w21 * s[4] + w22 * s[7];
+  const t22 = w20 * s[2] + w21 * s[5] + w22 * s[8];
+
+  // Σ_cam = T · Wᵀ (3×3). Wᵀ columns = rows of W.
+  return [
+    t00 * w00 + t01 * w01 + t02 * w02,
+    t00 * w10 + t01 * w11 + t02 * w12,
+    t00 * w20 + t01 * w21 + t02 * w22,
+    t10 * w00 + t11 * w01 + t12 * w02,
+    t10 * w10 + t11 * w11 + t12 * w12,
+    t10 * w20 + t11 * w21 + t12 * w22,
+    t20 * w00 + t21 * w01 + t22 * w02,
+    t20 * w10 + t21 * w11 + t22 * w12,
+    t20 * w20 + t21 * w21 + t22 * w22,
   ];
 }

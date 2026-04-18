@@ -28,6 +28,8 @@ interface ReconstructionState {
   cameraFocalLength: number;
   /** Use per-pixel Gaussian evaluation (true) vs simple ellipse bounds (false). */
   useCameraPixelEvaluation: boolean;
+  /** Show the fixed camera-view preview panel (only meaningful in cameraRender mode). */
+  showCameraPreview: boolean;
 
   setViewMode: (mode: ViewMode) => void;
   setDensityLevel: (level: number) => void;
@@ -35,12 +37,13 @@ interface ReconstructionState {
   setAnimationProgress: (progress: number) => void;
   toggleWireframe: () => void;
   toggleGaussianCenters: () => void;
-  
+
   setCameraAzimuth: (angle: number) => void;
   setCameraElevation: (angle: number) => void;
   setCameraDistance: (distance: number) => void;
   setCameraFocalLength: (length: number) => void;
   toggleCameraPixelEvaluation: () => void;
+  toggleCameraPreview: () => void;
   
   reset: () => void;
 }
@@ -57,8 +60,9 @@ const INITIAL_STATE = {
   cameraAzimuth: 45,
   cameraElevation: 30,
   cameraDistance: 5,
-  cameraFocalLength: 250,
+  cameraFocalLength: 400,
   useCameraPixelEvaluation: true,
+  showCameraPreview: true,
 };
 
 export const useReconstructionStore = create<ReconstructionState>((set) => ({
@@ -83,6 +87,7 @@ export const useReconstructionStore = create<ReconstructionState>((set) => ({
   setCameraDistance: (distance) => set({ cameraDistance: distance }),
   setCameraFocalLength: (length) => set({ cameraFocalLength: length }),
   toggleCameraPixelEvaluation: () => set((s) => ({ useCameraPixelEvaluation: !s.useCameraPixelEvaluation })),
+  toggleCameraPreview: () => set((s) => ({ showCameraPreview: !s.showCameraPreview })),
   
   reset: () => set(INITIAL_STATE),
 }));

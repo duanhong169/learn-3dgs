@@ -47,7 +47,7 @@ const gaussianInstanceFragmentShader = /* glsl */ `
 
   void main() {
     float r2 = dot(vLocalPos, vLocalPos);
-    float density = exp(-3.0 * r2);
+    float density = exp(-2.0 * r2);
     float alpha = density * vOpacity;
     if (alpha < 0.01) discard;
     gl_FragColor = vec4(vColor, alpha);
@@ -231,12 +231,14 @@ export function ReconstructionScene() {
   const showCameraRender = viewMode === 'cameraRender';
   const gtOpacity = viewMode === 'overlay' ? 0.35 : 1;
   const gaussianOpacity =
-    viewMode === 'overlay' ? 0.7 : viewMode === 'cameraRender' ? 0.4 : 1;
+    viewMode === 'overlay' ? 0.7 : 1;
 
   // Compute the frustum far-plane center and orientation so the rendered
   // image sits exactly on the camera frustum's far plane, facing the camera.
   const frustumFar = cameraDistance * 0.6;
-  const frustumFov = 45;
+  // CameraRenderedView 内部：fx = focalLength * (HI_H / 512)，HI_H = 162
+  // 垂直 FOV = 2 * atan((HI_H/2) / fx) = 2 * atan(256 / focalLength)
+  const frustumFov = (2 * Math.atan(256 / cameraFocalLength) * 180) / Math.PI;
 
   const { displayPosition, displayQuaternion, displaySize } = useMemo(() => {
     // Direction from camera to lookAt
@@ -255,7 +257,7 @@ export function ReconstructionScene() {
 
     // Size of the far plane (matches frustum geometry)
     const halfH = Math.tan((frustumFov * Math.PI) / 360) * frustumFar;
-    const planeSize: [number, number] = [halfH * 2, halfH * 2]; // aspect=1
+    const planeSize: [number, number] = [halfH * 2 * (16 / 9), halfH * 2]; // 16:9 aspect
 
     // Build a rotation that makes the plane face toward the camera.
     // Plane default normal = +Z. We need it pointing from farCenter → cameraPos.
@@ -346,8 +348,8 @@ export function ReconstructionScene() {
           <CameraFrustum
             position={virtualCameraPos}
             lookAt={cameraLookAt}
-            fov={45}
-            aspect={1}
+            fov={frustumFov}
+            aspect={16 / 9}
             near={0.3}
             far={cameraDistance * 0.6}
             color="#58a6ff"
