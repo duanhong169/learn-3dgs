@@ -233,9 +233,16 @@ function renderGaussianCameraView(
     data[i] = BG_R; data[i + 1] = BG_G; data[i + 2] = BG_B; data[i + 3] = 255;
   }
 
-  // Per-pixel splatting
+  // Per-pixel splatting — sample at pixel CENTER (px + 0.5, py + 0.5) rather
+  // than the pixel corner. This matches the convention used by drawImage's
+  // bilinear interpolation and WebGL's LinearFilter, so the low-res preview
+  // (later upscaled via drawImage) lines up with the native high-res render
+  // and avoids a visible sub-pixel jump when the debounced hi-res pass
+  // replaces the quick preview.
   for (let py = 0; py < h; py++) {
+    const sy = py + 0.5;
     for (let px = 0; px < w; px++) {
+      const sx = px + 0.5;
       const pixelIdx = (py * w + px) * 4;
       const colors: Tuple3[] = [];
       const opacities: number[] = [];
@@ -244,10 +251,10 @@ function renderGaussianCameraView(
         let alpha = 0;
 
         if (usePixelEvaluation) {
-          alpha = evaluateGaussian2D(px, py, splat.centerX, splat.centerY, splat.cov2D);
+          alpha = evaluateGaussian2D(sx, sy, splat.centerX, splat.centerY, splat.cov2D);
         } else {
-          const dx = px - splat.centerX;
-          const dy = py - splat.centerY;
+          const dx = sx - splat.centerX;
+          const dy = sy - splat.centerY;
           const cosA = Math.cos(splat.angle);
           const sinA = Math.sin(splat.angle);
           const lx = dx * cosA + dy * sinA;
