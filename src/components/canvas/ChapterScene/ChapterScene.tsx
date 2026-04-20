@@ -2,6 +2,7 @@ import { OrbitControls, Environment, Grid } from '@react-three/drei';
 
 import { useChapterStore } from '@/store/useChapterStore';
 import { useReconstructionStore } from '@/store/useReconstructionStore';
+import { useSHStore } from '@/store/useSHStore';
 import { GaussianBasicsScene } from '@/components/canvas/chapters/GaussianBasicsScene';
 import { SplattingScene } from '@/components/canvas/chapters/SplattingScene';
 import { AlphaBlendingScene } from '@/components/canvas/chapters/AlphaBlendingScene';
@@ -12,7 +13,12 @@ import { SphericalHarmonicsScene } from '@/components/canvas/chapters/SphericalH
 export function ChapterScene() {
   const activeChapter = useChapterStore((s) => s.activeChapter);
   const reconstructionViewMode = useReconstructionStore((s) => s.viewMode);
-  const hideGrid = activeChapter === 'reconstruction' && reconstructionViewMode === 'cameraRender';
+  const shViewMode = useSHStore((s) => s.viewMode);
+  // Hide the floor grid whenever a CPU-rendered camera view plane is on screen —
+  // the grid would otherwise overlap / occlude the render plane in ch5 & ch6.
+  const hideGrid =
+    (activeChapter === 'reconstruction' && reconstructionViewMode === 'cameraRender') ||
+    (activeChapter === 'spherical-harmonics' && shViewMode === 'cameraRender');
 
   return (
     <>
