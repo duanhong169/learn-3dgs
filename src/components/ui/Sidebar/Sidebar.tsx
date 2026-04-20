@@ -44,9 +44,14 @@ interface ChapterNavItemProps {
 }
 
 function ChapterNavItem({ index, icon, title, subtitle, isActive, onClick }: ChapterNavItemProps) {
+  // Native tooltip so users can read the full title/subtitle when truncated.
+  const tooltip = `${title}\n${subtitle}`;
+
   return (
     <button
       onClick={onClick}
+      title={tooltip}
+      aria-label={tooltip}
       className={cn(
         'flex w-full items-start gap-3 rounded-md px-3 py-2.5 text-left transition-colors duration-75',
         isActive
@@ -65,9 +70,9 @@ function ChapterNavItem({ index, icon, title, subtitle, isActive, onClick }: Cha
           )}>
             {index + 1}
           </span>
-          <span className="truncate text-sm font-medium">{title}</span>
+          <span className="truncate text-sm font-medium" title={title}>{title}</span>
         </div>
-        <p className="mt-0.5 truncate pl-7 text-xs text-text-muted">{subtitle}</p>
+        <p className="mt-0.5 truncate pl-7 text-xs text-text-muted" title={subtitle}>{subtitle}</p>
       </div>
     </button>
   );
