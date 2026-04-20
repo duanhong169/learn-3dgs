@@ -6,6 +6,8 @@ import { InstructionPanel } from '@/components/ui/shared/InstructionPanel';
 import { ParameterPanel } from '@/components/ui/shared/ParameterPanel';
 import { ParamSlider } from '@/components/ui/shared/ParamSlider';
 import { ParamToggle } from '@/components/ui/shared/ParamToggle';
+import { CameraPreviewPanel } from '@/components/ui/shared/CameraPreviewPanel';
+import { hiCanvas, HI_W, HI_H } from '@/components/canvas/chapters/sh/SHCameraRenderedView';
 import { SH_MATERIALS } from '@/utils/sh-scene';
 import { cn } from '@/lib/utils';
 
@@ -61,6 +63,7 @@ export function SphericalHarmonicsOverlay() {
   const cameraDistance = useSHStore((s) => s.cameraDistance);
   const cameraFocalLength = useSHStore((s) => s.cameraFocalLength);
   const useCameraPixelEvaluation = useSHStore((s) => s.useCameraPixelEvaluation);
+  const showCameraPreview = useSHStore((s) => s.showCameraPreview);
 
   const setSplatDensity = useSHStore((s) => s.setSplatDensity);
   const setViewMode = useSHStore((s) => s.setViewMode);
@@ -75,6 +78,7 @@ export function SphericalHarmonicsOverlay() {
   const setCameraDistance = useSHStore((s) => s.setCameraDistance);
   const setCameraFocalLength = useSHStore((s) => s.setCameraFocalLength);
   const toggleCameraPixelEvaluation = useSHStore((s) => s.toggleCameraPixelEvaluation);
+  const toggleCameraPreview = useSHStore((s) => s.toggleCameraPreview);
   const reset = useSHStore((s) => s.reset);
 
   const toggleHighlight = useCallback(
@@ -244,6 +248,11 @@ export function SphericalHarmonicsOverlay() {
               value={useCameraPixelEvaluation}
               onChange={toggleCameraPixelEvaluation}
             />
+            <ParamToggle
+              label="显示预览浮窗"
+              value={showCameraPreview}
+              onChange={toggleCameraPreview}
+            />
           </ParameterPanel>
         )}
 
@@ -256,6 +265,16 @@ export function SphericalHarmonicsOverlay() {
       </div>
 
       <InstructionPanel steps={INSTRUCTION_STEPS} />
+
+      {/* Camera view preview — bottom left, only in cameraRender mode */}
+      {viewMode === 'cameraRender' && showCameraPreview && (
+        <CameraPreviewPanel
+          canvas={hiCanvas}
+          canvasWidth={HI_W}
+          canvasHeight={HI_H}
+          onClose={toggleCameraPreview}
+        />
+      )}
     </>
   );
 }

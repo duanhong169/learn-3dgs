@@ -5,10 +5,10 @@ import { InstructionPanel } from '@/components/ui/shared/InstructionPanel';
 import { ParameterPanel } from '@/components/ui/shared/ParameterPanel';
 import { ParamSlider } from '@/components/ui/shared/ParamSlider';
 import { ParamToggle } from '@/components/ui/shared/ParamToggle';
+import { CameraPreviewPanel } from '@/components/ui/shared/CameraPreviewPanel';
+import { hiCanvas, HI_W, HI_H } from '@/components/canvas/shared/CameraRenderedView';
 import { generateSceneGaussians } from '@/utils/reconstruction';
 import { cn } from '@/lib/utils';
-
-import { CameraPreviewPanel } from './CameraPreviewPanel';
 
 import type { ViewMode } from '@/store/useReconstructionStore';
 
@@ -190,7 +190,14 @@ export function ReconstructionOverlay() {
       <InstructionPanel steps={INSTRUCTION_STEPS} />
 
       {/* Camera view preview — bottom left, only in cameraRender mode */}
-      {viewMode === 'cameraRender' && showCameraPreview && <CameraPreviewPanel />}
+      {viewMode === 'cameraRender' && showCameraPreview && (
+        <CameraPreviewPanel
+          canvas={hiCanvas}
+          canvasWidth={HI_W}
+          canvasHeight={HI_H}
+          onClose={toggleCameraPreview}
+        />
+      )}
     </>
   );
 }

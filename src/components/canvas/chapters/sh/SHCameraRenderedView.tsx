@@ -35,8 +35,8 @@ export interface SHCameraRenderedViewProps {
 }
 
 const ASPECT = 16 / 9;
-const HI_W = 288;
-const HI_H = Math.round(HI_W / ASPECT);
+export const HI_W = 288;
+export const HI_H = Math.round(HI_W / ASPECT);
 const LO_W = 80;
 const LO_H = Math.round(LO_W / ASPECT);
 const DEBOUNCE_MS = 300;
@@ -48,7 +48,7 @@ const loCanvas = (() => {
   return c;
 })();
 
-const hiCanvas = (() => {
+export const hiCanvas = (() => {
   const c = document.createElement('canvas');
   c.width = HI_W;
   c.height = HI_H;
