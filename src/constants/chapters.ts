@@ -38,6 +38,13 @@ export const CHAPTERS: ChapterMeta[] = [
     icon: '🏗️',
     totalSteps: 5,
   },
+  {
+    id: 'spherical-harmonics',
+    title: '球谐函数与视角依赖颜色',
+    subtitle: '用 SH 系数编码光照与反射',
+    icon: '🌐',
+    totalSteps: 6,
+  },
 ];
 
 /** Camera preset positions for each chapter. */
@@ -47,6 +54,7 @@ export const CHAPTER_CAMERA_POSITIONS: Record<ChapterId, Tuple3> = {
   'alpha-blending': [0, 0, 8],
   'optimization': [8, 6, 8],
   'reconstruction': [6, 4, 6],
+  'spherical-harmonics': [4, 3, 5],
 };
 
 /** Camera look-at targets for each chapter. */
@@ -56,4 +64,5 @@ export const CHAPTER_CAMERA_TARGETS: Record<ChapterId, Tuple3> = {
   'alpha-blending': [0, 0, 0],
   'optimization': [0, 0, 0],
   'reconstruction': [0, 0.5, 0],
+  'spherical-harmonics': [0, 1, 0],
 };

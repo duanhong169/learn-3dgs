@@ -4,6 +4,7 @@ import { SplattingOverlay } from '@/components/ui/chapters/SplattingOverlay';
 import { AlphaBlendingOverlay } from '@/components/ui/chapters/AlphaBlendingOverlay';
 import { OptimizationOverlay } from '@/components/ui/chapters/OptimizationOverlay';
 import { ReconstructionOverlay } from '@/components/ui/chapters/ReconstructionOverlay';
+import { SphericalHarmonicsOverlay } from '@/components/ui/chapters/SphericalHarmonicsOverlay';
 
 export function ChapterOverlay() {
   const activeChapter = useChapterStore((s) => s.activeChapter);
@@ -19,6 +20,8 @@ export function ChapterOverlay() {
       return <OptimizationOverlay />;
     case 'reconstruction':
       return <ReconstructionOverlay />;
+    case 'spherical-harmonics':
+      return <SphericalHarmonicsOverlay />;
     default:
       return null;
   }

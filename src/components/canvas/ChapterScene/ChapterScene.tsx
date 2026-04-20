@@ -7,6 +7,7 @@ import { SplattingScene } from '@/components/canvas/chapters/SplattingScene';
 import { AlphaBlendingScene } from '@/components/canvas/chapters/AlphaBlendingScene';
 import { OptimizationScene } from '@/components/canvas/chapters/OptimizationScene';
 import { ReconstructionScene } from '@/components/canvas/chapters/ReconstructionScene';
+import { SphericalHarmonicsScene } from '@/components/canvas/chapters/SphericalHarmonicsScene';
 
 export function ChapterScene() {
   const activeChapter = useChapterStore((s) => s.activeChapter);
@@ -24,6 +25,7 @@ export function ChapterScene() {
       {activeChapter === 'alpha-blending' && <AlphaBlendingScene />}
       {activeChapter === 'optimization' && <OptimizationScene />}
       {activeChapter === 'reconstruction' && <ReconstructionScene />}
+      {activeChapter === 'spherical-harmonics' && <SphericalHarmonicsScene />}
 
       {!hideGrid && (
         <Grid
