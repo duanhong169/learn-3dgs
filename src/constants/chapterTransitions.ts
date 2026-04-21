@@ -13,6 +13,10 @@ export interface ChapterTransition {
  * The next chapter is derived from the `CHAPTERS` array order, not from this map.
  */
 export const CHAPTER_TRANSITIONS: Record<ChapterId, ChapterTransition> = {
+  'intro': {
+    summary: '你已经理解了 3DGS 相对于 NeRF 的核心优势：显式原语带来极低的每像素成本。',
+    nextHint: '下一章：我们拆解一个 3D 高斯的位置、形状、颜色与不透明度。',
+  },
   'gaussian-basics': {
     summary: '你已经掌握了 3D 高斯的构成：位置 μ、协方差 Σ（缩放 + 旋转）、颜色与不透明度 α。',
     nextHint: '下一章：如何把一个 3D 高斯投影到 2D 图像平面——Splatting。',

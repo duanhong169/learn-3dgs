@@ -1,4 +1,5 @@
 import { useChapterStore } from '@/store/useChapterStore';
+import { IntroOverlay } from '@/components/ui/chapters/IntroOverlay';
 import { GaussianBasicsOverlay } from '@/components/ui/chapters/GaussianBasicsOverlay';
 import { SplattingOverlay } from '@/components/ui/chapters/SplattingOverlay';
 import { AlphaBlendingOverlay } from '@/components/ui/chapters/AlphaBlendingOverlay';
@@ -10,6 +11,8 @@ export function ChapterOverlay() {
   const activeChapter = useChapterStore((s) => s.activeChapter);
 
   switch (activeChapter) {
+    case 'intro':
+      return <IntroOverlay />;
     case 'gaussian-basics':
       return <GaussianBasicsOverlay />;
     case 'splatting':

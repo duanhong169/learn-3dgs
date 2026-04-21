@@ -4,6 +4,13 @@ import type { ChapterId, ChapterMeta } from '@/types/chapters';
 /** Ordered list of all chapters. */
 export const CHAPTERS: ChapterMeta[] = [
   {
+    id: 'intro',
+    title: '从 NeRF 到 3DGS',
+    subtitle: '为什么需要 3D 高斯溅射',
+    icon: '🚀',
+    totalSteps: 7,
+  },
+  {
     id: 'gaussian-basics',
     title: '3D 高斯基础',
     subtitle: '位置、形状、颜色与不透明度',
@@ -49,6 +56,7 @@ export const CHAPTERS: ChapterMeta[] = [
 
 /** Camera preset positions for each chapter. */
 export const CHAPTER_CAMERA_POSITIONS: Record<ChapterId, Tuple3> = {
+  'intro': [0, 0, 8],
   'gaussian-basics': [4, 3, 4],
   'splatting': [6, 4, 6],
   'alpha-blending': [0, 0, 8],
@@ -59,6 +67,7 @@ export const CHAPTER_CAMERA_POSITIONS: Record<ChapterId, Tuple3> = {
 
 /** Camera look-at targets for each chapter. */
 export const CHAPTER_CAMERA_TARGETS: Record<ChapterId, Tuple3> = {
+  'intro': [0, 0, 0],
   'gaussian-basics': [0, 0, 0],
   'splatting': [0, 0, 0],
   'alpha-blending': [0, 0, 0],

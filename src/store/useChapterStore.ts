@@ -22,7 +22,7 @@ interface ChapterState {
 }
 
 export const useChapterStore = create<ChapterState>((set, get) => ({
-  activeChapter: 'gaussian-basics',
+  activeChapter: 'intro',
   instructionStep: 0,
   sidebarCollapsed: false,
 
