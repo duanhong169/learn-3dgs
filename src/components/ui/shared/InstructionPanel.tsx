@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 import { useChapterStore } from '@/store/useChapterStore';
 import { CHAPTERS } from '@/constants/chapters';
+import { TransitionPanel } from './TransitionPanel';
 
 export interface InstructionPanelProps {
   steps: string[];
@@ -15,9 +16,13 @@ export function InstructionPanel({ steps }: InstructionPanelProps) {
   const chapter = CHAPTERS.find((c) => c.id === activeChapter);
   const totalSteps = chapter?.totalSteps ?? steps.length;
   const currentText = steps[instructionStep] ?? '';
+  const isLastStep = instructionStep === totalSteps - 1;
 
   return (
     <div className="pointer-events-auto absolute bottom-4 right-4 z-10 max-w-md rounded-md border border-border bg-surface/95 p-4 shadow-lg backdrop-blur-sm">
+      {/* 承上启下 card on the final step */}
+      {isLastStep && <TransitionPanel currentId={activeChapter} />}
+
       {/* Step indicator */}
       <div className="mb-2 flex items-center gap-2">
         <span className="text-xs font-medium text-text-muted">

@@ -20,4 +20,11 @@ export default defineConfig({
       },
     },
   },
+  test: {
+    // jsdom for component tests via @testing-library/react.
+    // Pure-math tests tolerate jsdom fine, so set it globally.
+    environment: 'jsdom',
+    setupFiles: ['./src/test-setup.ts'],
+    globals: false,
+  },
 });

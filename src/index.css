@@ -12,6 +12,14 @@
   --color-text-muted: #656d76;
   --color-nav-bg: #24292f;
 
+  /* Syntax-highlight palette (light — GitHub light-ish). */
+  --color-syntax-keyword: #cf222e;
+  --color-syntax-type: #953800;
+  --color-syntax-function: #8250df;
+  --color-syntax-string: #0a3069;
+  --color-syntax-number: #0550ae;
+  --color-syntax-comment: #6e7781;
+
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial,
     sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
   --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
@@ -29,6 +37,14 @@
     --color-text: #e6edf3;
     --color-text-muted: #8b949e;
     --color-nav-bg: #161b22;
+
+    /* Syntax-highlight palette (dark — GitHub dark-ish). */
+    --color-syntax-keyword: #ff7b72;
+    --color-syntax-type: #ffa657;
+    --color-syntax-function: #d2a8ff;
+    --color-syntax-string: #a5d6ff;
+    --color-syntax-number: #79c0ff;
+    --color-syntax-comment: #8b949e;
   }
 
   @media (prefers-color-scheme: dark) {
@@ -43,6 +59,13 @@
       --color-text: #e6edf3;
       --color-text-muted: #8b949e;
       --color-nav-bg: #161b22;
+
+      --color-syntax-keyword: #ff7b72;
+      --color-syntax-type: #ffa657;
+      --color-syntax-function: #d2a8ff;
+      --color-syntax-string: #a5d6ff;
+      --color-syntax-number: #79c0ff;
+      --color-syntax-comment: #8b949e;
     }
   }
 

@@ -7,3 +7,5 @@ export { MatrixDisplay } from './MatrixDisplay';
 export { AccumulationBar } from './AccumulationBar';
 export { LossChart } from './LossChart';
 export { HelpTooltip } from './HelpTooltip';
+export { CodePeek } from './CodePeek';
+export { TransitionPanel } from './TransitionPanel';

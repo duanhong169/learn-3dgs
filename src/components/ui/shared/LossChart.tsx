@@ -2,12 +2,22 @@ export interface LossChartProps {
   data: number[];
   width?: number;
   height?: number;
+  /** Optional CSS color for the line + dot. Defaults to `--color-primary`. */
+  color?: string;
+  /** Whether to show the header "Loss 曲线" label. Defaults to true. */
+  showTitle?: boolean;
 }
 
 /**
  * Simple SVG line chart showing loss over optimization steps.
  */
-export function LossChart({ data, width = 220, height = 80 }: LossChartProps) {
+export function LossChart({
+  data,
+  width = 220,
+  height = 80,
+  color,
+  showTitle = true,
+}: LossChartProps) {
   if (data.length < 2) {
     return (
       <div className="flex items-center justify-center rounded-md border border-border bg-bg" style={{ width, height }}>
@@ -37,9 +47,11 @@ export function LossChart({ data, width = 220, height = 80 }: LossChartProps) {
   const bottomY = padding.top + chartH;
   const areaD = `${pathD} L ${lastX},${bottomY} L ${firstX},${bottomY} Z`;
 
+  const lineColor = color ?? 'var(--color-primary)';
+
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs font-medium text-text-muted">Loss 曲线</span>
+      {showTitle && <span className="text-xs font-medium text-text-muted">Loss 曲线</span>}
       <svg width={width} height={height} className="rounded-md border border-border bg-bg">
         {/* Grid lines */}
         {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
@@ -58,10 +70,10 @@ export function LossChart({ data, width = 220, height = 80 }: LossChartProps) {
         })}
 
         {/* Area fill */}
-        <path d={areaD} fill="var(--color-primary)" opacity={0.1} />
+        <path d={areaD} fill={lineColor} opacity={0.1} />
 
         {/* Line */}
-        <path d={pathD} fill="none" stroke="var(--color-primary)" strokeWidth={1.5} />
+        <path d={pathD} fill="none" stroke={lineColor} strokeWidth={1.5} />
 
         {/* Current value dot */}
         {data.length > 0 && (
@@ -69,7 +81,7 @@ export function LossChart({ data, width = 220, height = 80 }: LossChartProps) {
             cx={padding.left + chartW}
             cy={padding.top + (1 - ((data[data.length - 1] ?? 0) - minVal) / (maxVal - minVal)) * chartH}
             r={3}
-            fill="var(--color-primary)"
+            fill={lineColor}
           />
         )}
 
