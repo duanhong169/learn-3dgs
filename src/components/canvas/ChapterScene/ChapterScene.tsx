@@ -7,6 +7,7 @@ import { IntroScene } from '@/components/canvas/chapters/IntroScene';
 import { GaussianBasicsScene } from '@/components/canvas/chapters/GaussianBasicsScene';
 import { SplattingScene } from '@/components/canvas/chapters/SplattingScene';
 import { AlphaBlendingScene } from '@/components/canvas/chapters/AlphaBlendingScene';
+import { TileRasterScene } from '@/components/canvas/chapters/TileRasterScene';
 import { OptimizationScene } from '@/components/canvas/chapters/OptimizationScene';
 import { ReconstructionScene } from '@/components/canvas/chapters/ReconstructionScene';
 import { SphericalHarmonicsScene } from '@/components/canvas/chapters/SphericalHarmonicsScene';
@@ -17,10 +18,11 @@ export function ChapterScene() {
   const reconstructionViewMode = useReconstructionStore((s) => s.viewMode);
   const shViewMode = useSHStore((s) => s.viewMode);
   // Hide the floor grid whenever a CPU-rendered camera view plane is on screen —
-  // the grid would otherwise overlap / occlude the render plane in ch5 & ch6,
-  // and on the intro chapter where it's just visual clutter.
+  // the grid would otherwise overlap / occlude the render plane in ch6 & ch7,
+  // and on the intro/tile chapters where it's just visual clutter.
   const hideGrid =
     activeChapter === 'intro' ||
+    activeChapter === 'tile-rasterization' ||
     (activeChapter === 'reconstruction' && reconstructionViewMode === 'cameraRender') ||
     (activeChapter === 'spherical-harmonics' && shViewMode === 'cameraRender');
 
@@ -34,6 +36,7 @@ export function ChapterScene() {
       {activeChapter === 'gaussian-basics' && <GaussianBasicsScene />}
       {activeChapter === 'splatting' && <SplattingScene />}
       {activeChapter === 'alpha-blending' && <AlphaBlendingScene />}
+      {activeChapter === 'tile-rasterization' && <TileRasterScene />}
       {activeChapter === 'optimization' && <OptimizationScene />}
       {activeChapter === 'reconstruction' && <ReconstructionScene />}
       {activeChapter === 'spherical-harmonics' && <SphericalHarmonicsScene />}

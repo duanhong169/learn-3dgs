@@ -27,6 +27,10 @@ export const CHAPTER_TRANSITIONS: Record<ChapterId, ChapterTransition> = {
   },
   'alpha-blending': {
     summary: '你已经理解前到后的 α 合成公式：C = Σ cᵢ·αᵢ·Π(1-αⱼ)。',
+    nextHint: '下一章：当场景有百万级 splat 时，如何做到实时——Tile 光栅化。',
+  },
+  'tile-rasterization': {
+    summary: '你已经看到 tile 切分 + per-tile 排序 + 像素级 α 合成 + 早期终止让 3DGS 实时可行。',
     nextHint: '下一章：这些 splat 的参数是怎么训练出来的——优化与密度控制。',
   },
   'optimization': {

@@ -3,6 +3,7 @@ import { IntroOverlay } from '@/components/ui/chapters/IntroOverlay';
 import { GaussianBasicsOverlay } from '@/components/ui/chapters/GaussianBasicsOverlay';
 import { SplattingOverlay } from '@/components/ui/chapters/SplattingOverlay';
 import { AlphaBlendingOverlay } from '@/components/ui/chapters/AlphaBlendingOverlay';
+import { TileRasterOverlay } from '@/components/ui/chapters/TileRasterOverlay';
 import { OptimizationOverlay } from '@/components/ui/chapters/OptimizationOverlay';
 import { ReconstructionOverlay } from '@/components/ui/chapters/ReconstructionOverlay';
 import { SphericalHarmonicsOverlay } from '@/components/ui/chapters/SphericalHarmonicsOverlay';
@@ -19,6 +20,8 @@ export function ChapterOverlay() {
       return <SplattingOverlay />;
     case 'alpha-blending':
       return <AlphaBlendingOverlay />;
+    case 'tile-rasterization':
+      return <TileRasterOverlay />;
     case 'optimization':
       return <OptimizationOverlay />;
     case 'reconstruction':

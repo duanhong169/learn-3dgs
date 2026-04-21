@@ -4,6 +4,7 @@ export type ChapterId =
   | 'gaussian-basics'
   | 'splatting'
   | 'alpha-blending'
+  | 'tile-rasterization'
   | 'optimization'
   | 'reconstruction'
   | 'spherical-harmonics';
