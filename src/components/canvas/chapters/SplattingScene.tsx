@@ -7,7 +7,12 @@ import { ScreenPlane } from '@/components/canvas/shared/ScreenPlane';
 import { ProjectionRays } from '@/components/canvas/shared/ProjectionRays';
 import { useSplattingStore } from '@/store/useSplattingStore';
 import { buildCovarianceMatrix, degToRad } from '@/utils/math';
-import { computeProjectionJacobian, projectCovariance3Dto2D, covarianceToEllipse } from '@/utils/projection';
+import {
+  computeProjectionJacobian,
+  projectCovariance3Dto2D,
+  covarianceToEllipse,
+  rotateCovariance3D,
+} from '@/utils/projection';
 
 /**
  * Chapter 2: Splatting & Projection — Visualize how a 3D Gaussian projects to a 2D ellipse.
@@ -20,6 +25,7 @@ export function SplattingScene() {
   const cameraDistance = useSplattingStore((s) => s.cameraDistance);
   const showProjectionLines = useSplattingStore((s) => s.showProjectionLines);
   const setCovariance3D = useSplattingStore((s) => s.setCovariance3D);
+  const setCovariance2D = useSplattingStore((s) => s.setCovariance2D);
 
   // Virtual camera position orbiting around origin
   const virtualCamPos: [number, number, number] = useMemo(() => {
@@ -37,24 +43,42 @@ export function SplattingScene() {
     return dir;
   }, [virtualCamPos]);
 
-  // Compute 3D covariance and project to 2D
-  const { cov3D, ellipseParams } = useMemo(() => {
+  // Compute 3D covariance (world space), rotate into camera space, then project to 2D.
+  // The Jacobian approximation is accurate only at the Gaussian's camera-space
+  // position — since the Gaussian sits at the world origin, that position is
+  // simply (0, 0, cameraDistance) in camera space, which keeps J well conditioned.
+  const { cov3D, cov2D, ellipseParams } = useMemo(() => {
     const cov = buildCovarianceMatrix(gaussianScale, gaussianRotation);
+
+    // Camera basis (world coordinates). `forward` points from the camera toward
+    // the Gaussian at the origin; `right` and `up` are derived from a world-up
+    // reference, matching three.js's Matrix4.lookAt convention.
+    const forward: [number, number, number] = [camDir.x, camDir.y, camDir.z];
+    const worldUp = new THREE.Vector3(0, 1, 0);
+    const forwardV = new THREE.Vector3(...forward);
+    const rightV = new THREE.Vector3().crossVectors(worldUp, forwardV).normalize();
+    // Fallback when the camera looks straight up/down and `right` degenerates.
+    if (rightV.lengthSq() < 1e-6) rightV.set(1, 0, 0);
+    const upV = new THREE.Vector3().crossVectors(forwardV, rightV).normalize();
+    const right: [number, number, number] = [rightV.x, rightV.y, rightV.z];
+    const up: [number, number, number] = [upV.x, upV.y, upV.z];
+
+    const covCam = rotateCovariance3D(cov, right, up, forward);
+
     const fx = 2;
     const fy = 2;
-    const jacobian = computeProjectionJacobian(
-      -virtualCamPos[0], -virtualCamPos[1], -virtualCamPos[2],
-      fx, fy,
-    );
-    const cov2D = projectCovariance3Dto2D(cov, jacobian);
-    const ellipse = covarianceToEllipse(cov2D);
-    return { cov3D: cov, cov2D, ellipseParams: ellipse };
-  }, [gaussianScale, gaussianRotation, virtualCamPos]);
+    // Gaussian's camera-space position: (0, 0, +cameraDistance).
+    const jacobian = computeProjectionJacobian(0, 0, cameraDistance, fx, fy);
+    const cov2DResult = projectCovariance3Dto2D(covCam, jacobian);
+    const ellipse = covarianceToEllipse(cov2DResult);
+    return { cov3D: cov, cov2D: cov2DResult, ellipseParams: ellipse };
+  }, [gaussianScale, gaussianRotation, camDir, cameraDistance]);
 
   // Update store with computed covariances
   useEffect(() => {
     setCovariance3D(cov3D);
-  }, [cov3D, setCovariance3D]);
+    setCovariance2D(cov2D);
+  }, [cov3D, cov2D, setCovariance3D, setCovariance2D]);
 
   // Image plane: positioned between camera and Gaussian, at 40% from camera
   const imagePlaneDistance = cameraDistance * 0.4;
