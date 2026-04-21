@@ -9,6 +9,7 @@ import { AlphaBlendingScene } from '@/components/canvas/chapters/AlphaBlendingSc
 import { OptimizationScene } from '@/components/canvas/chapters/OptimizationScene';
 import { ReconstructionScene } from '@/components/canvas/chapters/ReconstructionScene';
 import { SphericalHarmonicsScene } from '@/components/canvas/chapters/SphericalHarmonicsScene';
+import { ViewportGizmo } from '@/components/canvas/shared/ViewportGizmo';
 
 export function ChapterScene() {
   const activeChapter = useChapterStore((s) => s.activeChapter);
@@ -45,6 +46,7 @@ export function ChapterScene() {
         />
       )}
       <OrbitControls makeDefault enableDamping dampingFactor={0.1} />
+      <ViewportGizmo />
     </>
   );
 }
