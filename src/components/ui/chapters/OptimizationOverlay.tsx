@@ -1,9 +1,13 @@
+import optimizationStoreSrc from '@/store/useOptimizationStore.ts?raw';
+
 import { useOptimizationStore } from '@/store/useOptimizationStore';
 import { InstructionPanel } from '@/components/ui/shared/InstructionPanel';
 import { ParameterPanel } from '@/components/ui/shared/ParameterPanel';
 import { ParamSlider } from '@/components/ui/shared/ParamSlider';
 import { ParamToggle } from '@/components/ui/shared/ParamToggle';
 import { LossChart } from '@/components/ui/shared/LossChart';
+import { CodePeek } from '@/components/ui/shared/CodePeek';
+import { useChapterStore } from '@/store/useChapterStore';
 import { cn } from '@/lib/utils';
 
 const INSTRUCTION_STEPS = [
@@ -14,13 +18,21 @@ const INSTRUCTION_STEPS = [
   '「分裂 (Split)」: 一个大高斯体梯度大 → 覆盖太多区域 → 分裂为 2 个更小的。',
   '「克隆 (Clone)」: 一个小高斯体梯度大 → 覆盖不够 → 在附近复制一个。',
   '「修剪 (Prune)」: 不透明度接近 0 的高斯体没有用 → 移除以节省内存。',
-  '观察高斯体数量的变化。真实 3DGS 每 100 次迭代执行一次这样的操作！',
+  '训练损失不是单一的像素差。论文用 (1−λ)·L1 + λ·D-SSIM，默认 λ=0.2。拖动「λ」滑块：λ=1 时只看结构相似度；λ=0 时只看逐像素差。',
+  '不透明度重置——每 3000 iter（演示里调成 300）把所有 α 置为 0.01。为什么？有些 splat 陷入"我透明但我还活着"的局部最优；重置后下一轮密度控制就会把它们 prune 掉。点击「手动重置」按钮观察 loss 跳变。',
+  '观察高斯体数量的变化。真实 3DGS 每 100 次迭代执行一次密度控制，每 3000 次迭代执行一次不透明度重置。下一章：把这些串起来看完整的重建场景。',
 ];
 
 export function OptimizationOverlay() {
   const gaussians = useOptimizationStore((s) => s.gaussians);
   const step = useOptimizationStore((s) => s.step);
   const loss = useOptimizationStore((s) => s.loss);
+  const l1Loss = useOptimizationStore((s) => s.l1Loss);
+  const dssimLoss = useOptimizationStore((s) => s.dssimLoss);
+  const lambdaDssim = useOptimizationStore((s) => s.lambdaDssim);
+  const resetInterval = useOptimizationStore((s) => s.resetInterval);
+  const opacityResetCountdown = useOptimizationStore((s) => s.opacityResetCountdown);
+  const opacityResetsTriggered = useOptimizationStore((s) => s.opacityResetsTriggered);
   const isAutoRunning = useOptimizationStore((s) => s.isAutoRunning);
   const autoRunSpeed = useOptimizationStore((s) => s.autoRunSpeed);
   const showGradients = useOptimizationStore((s) => s.showGradients);
@@ -33,15 +45,20 @@ export function OptimizationOverlay() {
   const triggerSplit = useOptimizationStore((s) => s.triggerSplit);
   const triggerClone = useOptimizationStore((s) => s.triggerClone);
   const triggerPrune = useOptimizationStore((s) => s.triggerPrune);
+  const triggerOpacityReset = useOptimizationStore((s) => s.triggerOpacityReset);
   const toggleGradients = useOptimizationStore((s) => s.toggleGradients);
   const toggleAutoDensify = useOptimizationStore((s) => s.toggleAutoDensify);
   const setPruneThreshold = useOptimizationStore((s) => s.setPruneThreshold);
+  const setLambdaDssim = useOptimizationStore((s) => s.setLambdaDssim);
+  const setResetInterval = useOptimizationStore((s) => s.setResetInterval);
   const reset = useOptimizationStore((s) => s.reset);
+
+  const instructionStep = useChapterStore((s) => s.instructionStep);
 
   return (
     <>
       {/* Parameter panel — top right */}
-      <div className="pointer-events-auto absolute right-4 top-4 flex max-h-[calc(100vh-12rem)] w-64 flex-col gap-3 overflow-y-auto">
+      <div className="pointer-events-auto absolute right-4 top-4 flex max-h-[calc(100vh-12rem)] w-72 flex-col gap-3 overflow-y-auto">
         {/* Stats */}
         <ParameterPanel title="训练状态">
           <div className="flex justify-between text-xs">
@@ -88,6 +105,55 @@ export function OptimizationOverlay() {
           <ParamSlider label="速度" value={autoRunSpeed} min={0.5} max={5} step={0.5} onChange={setAutoRunSpeed} />
         </ParameterPanel>
 
+        {/* Loss decomposition (NEW) */}
+        <ParameterPanel
+          title="损失函数"
+          tooltip="L = (1−λ)·L1 + λ·D-SSIM。论文默认 λ=0.2：L1 给像素级精度，D-SSIM 保留局部结构。"
+        >
+          <ParamSlider
+            label="λ (D-SSIM 权重)"
+            value={lambdaDssim}
+            min={0}
+            max={1}
+            step={0.05}
+            onChange={setLambdaDssim}
+          />
+          <div className="flex flex-col gap-1.5 pt-1">
+            <MiniChart label="L1" data={l1Loss} color="#58a6ff" />
+            <MiniChart label="D-SSIM" data={dssimLoss} color="#f78166" />
+            <MiniChart label="Total" data={loss} color="#3fb950" />
+          </div>
+        </ParameterPanel>
+
+        {/* Opacity reset (NEW) */}
+        <ParameterPanel
+          title="不透明度重置"
+          tooltip="论文中每 3000 iter 把所有 α 重置到 0.01，避免 splat 陷入「透明但未 prune」的局部最优。这里默认 300 以便演示。"
+        >
+          <ParamSlider
+            label="重置间隔"
+            value={resetInterval}
+            min={50}
+            max={3000}
+            step={50}
+            onChange={setResetInterval}
+          />
+          <div className="flex justify-between text-xs">
+            <span className="text-text-muted">下次重置倒计时</span>
+            <span className="font-mono text-text">{opacityResetCountdown}</span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-text-muted">已触发次数</span>
+            <span className="font-mono text-primary">{opacityResetsTriggered}</span>
+          </div>
+          <button
+            onClick={triggerOpacityReset}
+            className="rounded-md border border-warning/40 bg-warning/5 px-3 py-1.5 text-xs font-medium text-warning transition-colors duration-75 hover:bg-warning/15"
+          >
+            手动触发重置
+          </button>
+        </ParameterPanel>
+
         {/* Adaptive density control */}
         <ParameterPanel title="自适应密度控制">
           <div className="flex gap-2">
@@ -119,10 +185,23 @@ export function OptimizationOverlay() {
           <ParamToggle label="自动密度控制" value={autoDensify} onChange={toggleAutoDensify} />
         </ParameterPanel>
 
-        {/* Loss chart */}
-        <ParameterPanel title="训练曲线">
-          <LossChart data={loss} />
-        </ParameterPanel>
+        {/* CodePeek: show when reaching loss-decomposition step */}
+        {instructionStep >= 7 && (
+          <CodePeek
+            source={optimizationStoreSrc}
+            functionName="runStep"
+            label="store/useOptimizationStore.ts"
+            caption="Loss 合成发生在 runStep 内：newTotal = (1-λ)·newL1 + λ·newDssim。"
+          />
+        )}
+        {instructionStep >= 8 && (
+          <CodePeek
+            source={optimizationStoreSrc}
+            functionName="triggerOpacityReset"
+            label="store/useOptimizationStore.ts"
+            caption="重置就是一行代码：所有 gaussian.opacity = 0.01。简洁但关键。"
+          />
+        )}
 
         <button
           onClick={reset}
@@ -135,5 +214,30 @@ export function OptimizationOverlay() {
       {/* Instruction panel — bottom right */}
       <InstructionPanel steps={INSTRUCTION_STEPS} />
     </>
+  );
+}
+
+/** Small inline loss chart — labeled + colored. Reuses LossChart. */
+function MiniChart({
+  label,
+  data,
+  color,
+}: {
+  label: string;
+  data: number[];
+  color: string;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span
+        className="w-14 font-mono text-[10px] font-medium"
+        style={{ color }}
+      >
+        {label}
+      </span>
+      <div className="flex-1">
+        <LossChart data={data} width={180} height={40} color={color} showTitle={false} />
+      </div>
+    </div>
   );
 }

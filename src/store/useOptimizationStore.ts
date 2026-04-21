@@ -60,7 +60,21 @@ const MAX_GAUSSIANS = 60;
 interface OptimizationState {
   gaussians: OptGaussian[];
   step: number;
+  /** Total combined loss history (backwards-compatible — still provided for existing callers). */
   loss: number[];
+  /** L1 loss component history. */
+  l1Loss: number[];
+  /** D-SSIM loss component history. */
+  dssimLoss: number[];
+  /** Weighting between L1 and D-SSIM: total = (1-λ)·L1 + λ·D-SSIM. Paper default 0.2. */
+  lambdaDssim: number;
+  /** Iteration interval between automatic opacity resets. Paper uses 3000; demo-friendly default is 300. */
+  resetInterval: number;
+  /** Remaining steps until the next automatic opacity reset. */
+  opacityResetCountdown: number;
+  /** How many opacity resets have been triggered (manual + automatic). */
+  opacityResetsTriggered: number;
+
   isAutoRunning: boolean;
   autoRunSpeed: number;
   showGradients: boolean;
@@ -74,16 +88,30 @@ interface OptimizationState {
   triggerSplit: () => void;
   triggerClone: () => void;
   triggerPrune: () => void;
+  /** Reset every gaussian's opacity to ~0.01. Increments `opacityResetsTriggered`. */
+  triggerOpacityReset: () => void;
   toggleGradients: () => void;
   toggleAutoDensify: () => void;
   setPruneThreshold: (t: number) => void;
+  setLambdaDssim: (v: number) => void;
+  setResetInterval: (n: number) => void;
   reset: () => void;
 }
+
+const INITIAL_LAMBDA = 0.2;
+const INITIAL_RESET_INTERVAL = 300;
+const OPACITY_RESET_VALUE = 0.01;
 
 export const useOptimizationStore = create<OptimizationState>((set, get) => ({
   gaussians: createRandomGaussians(INITIAL_GAUSSIAN_COUNT),
   step: 0,
   loss: [1.0],
+  l1Loss: [1.0],
+  dssimLoss: [1.0],
+  lambdaDssim: INITIAL_LAMBDA,
+  resetInterval: INITIAL_RESET_INTERVAL,
+  opacityResetCountdown: INITIAL_RESET_INTERVAL,
+  opacityResetsTriggered: 0,
   isAutoRunning: false,
   autoRunSpeed: 1,
   showGradients: true,
@@ -91,7 +119,7 @@ export const useOptimizationStore = create<OptimizationState>((set, get) => ({
   autoDensify: true,
 
   runStep: () => {
-    const { gaussians, step, loss } = get();
+    const { gaussians, step, loss, l1Loss, dssimLoss, lambdaDssim } = get();
     const learningRate = 0.08;
 
     const updated = gaussians.map((g) => {
@@ -130,7 +158,7 @@ export const useOptimizationStore = create<OptimizationState>((set, get) => ({
       };
     });
 
-    // Compute mock loss
+    // Mock L1 loss component = mean distance to nearest target (drops quickly early on).
     const avgDist = updated.reduce((sum, g) => {
       let minDist = Infinity;
       for (const t of OPTIMIZATION_TARGETS) {
@@ -143,11 +171,29 @@ export const useOptimizationStore = create<OptimizationState>((set, get) => ({
       }
       return sum + minDist;
     }, 0) / updated.length;
+    const newL1 = Math.max(0, avgDist / 5);
 
-    const newLoss = Math.max(0, avgDist / 5);
+    // Mock D-SSIM component = variance of per-splat residuals (drops slower).
+    const mean = updated.reduce((sum, g) => sum + g.gradientMagnitude, 0) / updated.length;
+    const variance =
+      updated.reduce((sum, g) => sum + (g.gradientMagnitude - mean) ** 2, 0) /
+      Math.max(1, updated.length);
+    // Scale to a similar magnitude to L1 but with a different decay curve.
+    const newDssim = Math.max(0, Math.min(1, 0.2 + variance * 0.5));
+
+    const newTotal = (1 - lambdaDssim) * newL1 + lambdaDssim * newDssim;
     const newStep = step + 1;
 
     let finalGaussians = updated;
+    let newResetsTriggered = get().opacityResetsTriggered;
+    let newCountdown = get().opacityResetCountdown - 1;
+
+    // Auto opacity reset every `resetInterval` steps (paper: 3000; demo default 300).
+    if (newCountdown <= 0) {
+      finalGaussians = finalGaussians.map((g) => ({ ...g, opacity: OPACITY_RESET_VALUE }));
+      newResetsTriggered += 1;
+      newCountdown = get().resetInterval;
+    }
 
     // Auto adaptive density control every DENSIFY_INTERVAL steps
     if (get().autoDensify && newStep % DENSIFY_INTERVAL === 0 && newStep > 0) {
@@ -204,7 +250,11 @@ export const useOptimizationStore = create<OptimizationState>((set, get) => ({
     set({
       gaussians: finalGaussians,
       step: newStep,
-      loss: [...loss, newLoss],
+      loss: [...loss, newTotal],
+      l1Loss: [...l1Loss, newL1],
+      dssimLoss: [...dssimLoss, newDssim],
+      opacityResetCountdown: newCountdown,
+      opacityResetsTriggered: newResetsTriggered,
     });
   },
 
@@ -213,7 +263,6 @@ export const useOptimizationStore = create<OptimizationState>((set, get) => ({
 
   triggerSplit: () => {
     const { gaussians } = get();
-    // Find the largest Gaussian with high gradient
     const candidates = gaussians
       .filter((g) => g.gradientMagnitude > 0.5 && Math.max(...g.scale) > 0.5)
       .sort((a, b) => Math.max(...b.scale) - Math.max(...a.scale));
@@ -271,15 +320,33 @@ export const useOptimizationStore = create<OptimizationState>((set, get) => ({
     });
   },
 
+  triggerOpacityReset: () => {
+    const { gaussians, opacityResetsTriggered } = get();
+    set({
+      gaussians: gaussians.map((g) => ({ ...g, opacity: OPACITY_RESET_VALUE })),
+      opacityResetsTriggered: opacityResetsTriggered + 1,
+      opacityResetCountdown: get().resetInterval,
+    });
+  },
+
   toggleGradients: () => set((s) => ({ showGradients: !s.showGradients })),
   toggleAutoDensify: () => set((s) => ({ autoDensify: !s.autoDensify })),
   setPruneThreshold: (t) => set({ pruneThreshold: t }),
+  setLambdaDssim: (v) => set({ lambdaDssim: Math.min(1, Math.max(0, v)) }),
+  setResetInterval: (n) =>
+    set({ resetInterval: Math.max(10, Math.round(n)), opacityResetCountdown: Math.max(10, Math.round(n)) }),
 
   reset: () =>
     set({
       gaussians: createRandomGaussians(INITIAL_GAUSSIAN_COUNT),
       step: 0,
       loss: [1.0],
+      l1Loss: [1.0],
+      dssimLoss: [1.0],
+      lambdaDssim: INITIAL_LAMBDA,
+      resetInterval: INITIAL_RESET_INTERVAL,
+      opacityResetCountdown: INITIAL_RESET_INTERVAL,
+      opacityResetsTriggered: 0,
       isAutoRunning: false,
       showGradients: true,
       autoDensify: true,

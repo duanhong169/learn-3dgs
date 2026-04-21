@@ -43,7 +43,7 @@ export const CHAPTERS: ChapterMeta[] = [
     title: '优化与密度控制',
     subtitle: '分裂、克隆与修剪',
     icon: '⚙️',
-    totalSteps: 8,
+    totalSteps: 10,
   },
   {
     id: 'reconstruction',
