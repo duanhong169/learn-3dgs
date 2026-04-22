@@ -34,6 +34,11 @@ export function TileGridOverlay({
 }: TileGridOverlayProps) {
   const selectedTile = useTileRasterStore((s) => s.selectedTile);
   const setSelectedTile = useTileRasterStore((s) => s.setSelectedTile);
+  // Subscribe to `stats` as a cheap "bins were refreshed" trigger. setStats is
+  // called once per rasterize pass with a new object reference, so including
+  // it in useMemo deps forces heatmap recomputation whenever bins change —
+  // without putting the (potentially large) bins array itself in the store.
+  const stats = useTileRasterStore((s) => s.stats);
 
   const tilesX = Math.ceil(imageWidth / tileSize);
   const tilesY = Math.ceil(imageHeight / tileSize);
@@ -71,6 +76,8 @@ export function TileGridOverlay({
   }, [showGrid, planeSize, tilesX, tilesY, tileWorldX, tileWorldY]);
 
   // Heatmap cells (one per tile with at least 1 splat).
+  // Deps include `stats` so this recomputes whenever the scene finishes a new
+  // rasterize pass (stats is replaced with a new object ref each time).
   const heatmapTiles = useMemo(() => {
     if (!showHeatmap) return [];
     const bins = tileRasterSharedBins.current;
@@ -86,10 +93,7 @@ export function TileGridOverlay({
       count: b.splatIndices.length,
       intensity: b.splatIndices.length / maxCount,
     }));
-    // Note: deliberately depends on showHeatmap + tilesX/Y only; bins are
-    // accessed through the ref so stale data doesn't cause hook errors.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showHeatmap, tilesX, tilesY, tileSize]);
+  }, [showHeatmap, tilesX, tilesY, tileSize, stats]);
 
   return (
     <group position={[0, 0, 0.01]}>

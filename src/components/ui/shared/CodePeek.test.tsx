@@ -108,4 +108,28 @@ describe('CodePeek', () => {
     const trigger = screen.getByRole('button', { name: /查看代码/ });
     expect(trigger.textContent).toContain('alpha()');
   });
+
+  it('extracts full body when the signature has an object-literal return type', () => {
+    // Regression: previously the naive indexOf('{') would latch onto the
+    // return-type `{` and the brace-counter would close inside the signature,
+    // leaving the actual body (delta = x * 10) unextracted.
+    const SRC = `export function delta(
+  x: number,
+  buf: Uint8ClampedArray,
+): { touchedCount: number; earlyTerminatedPixels: number } {
+  const y = x * 10;
+  return { touchedCount: y, earlyTerminatedPixels: 0 };
+}
+`;
+    render(
+      <CodePeek source={SRC} label="sample.ts" functionName="delta" defaultOpen />,
+    );
+    const code = document.querySelector('code');
+    expect(code!.textContent).toContain('function delta');
+    // Body content must be present.
+    expect(code!.textContent).toContain('const y = x * 10');
+    expect(code!.textContent).toContain('touchedCount: y');
+    // Also the closing brace of the function itself.
+    expect(code!.textContent).toMatch(/\}\s*$/);
+  });
 });
